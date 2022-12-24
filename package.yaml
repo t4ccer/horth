@@ -1,6 +1,6 @@
-name:                coinflow
+name:                horth
 version:             0.1.0.0
-github:              "t4ccer/coinflow"
+github:              "t4ccer/horth"
 license:             GPL-3-or-later
 author:              "t4ccer"
 maintainer:          "t4ccre@gmail.com"
@@ -9,14 +9,97 @@ copyright:           "t4ccer"
 extra-source-files:
 - README.md
 
-description:         Please see the README on GitHub at <https://github.com/t4ccer/coinflow#readme>
+description:         Please see the README on GitHub at <https://github.com/t4ccer/horth#readme>
 
 dependencies:
 - base >= 4.10.0 && < 5
 
+default-extensions:
+  - NoStarIsType
+  - BangPatterns
+  - BinaryLiterals
+  - ConstrainedClassMethods
+  - ConstraintKinds
+  - DataKinds
+  - DeriveAnyClass
+  - DeriveDataTypeable
+  - DeriveFoldable
+  - DeriveFunctor
+  - DeriveGeneric
+  - DeriveLift
+  - DeriveTraversable
+  - DerivingStrategies
+  - DerivingVia
+  - DoAndIfThenElse
+  - DuplicateRecordFields
+  - EmptyCase
+  - EmptyDataDecls
+  - EmptyDataDeriving
+  - ExistentialQuantification
+  - ExplicitForAll
+  - FlexibleContexts
+  - FlexibleInstances
+  - ForeignFunctionInterface
+  - GADTSyntax
+  - GeneralisedNewtypeDeriving
+  - HexFloatLiterals
+  - ImplicitPrelude
+  - ImportQualifiedPost
+  - InstanceSigs
+  - KindSignatures
+  - LambdaCase
+  - MonomorphismRestriction
+  - MultiParamTypeClasses
+  - NamedFieldPuns
+  - NamedWildCards
+  - NumericUnderscores
+  - OverloadedLabels
+  - OverloadedRecordDot
+  - OverloadedStrings
+  - PackageImports
+  - PartialTypeSignatures
+  - PatternGuards
+  - PolyKinds
+  - PostfixOperators
+  - QualifiedDo
+  - RankNTypes
+  - RelaxedPolyRec
+  - ScopedTypeVariables
+  - StandaloneDeriving
+  - StandaloneKindSignatures
+  - TupleSections
+  - TypeApplications
+  - TypeFamilies
+  - TypeOperators
+  - TypeSynonymInstances
+  - UndecidableInstances
+  - ViewPatterns
+
 library:
   source-dirs: src
-
+  ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -Wall
+    - -Wcompat
+    - -Wincomplete-uni-patterns
+    - -Wno-unused-do-bind
+    - -Wno-partial-type-signatures
+    - -Wmissing-export-lists
+    - -Wincomplete-record-updates
+    - -Wmissing-deriving-strategies
+    - -Wno-name-shadowing
+    - -Wunused-foralls
+    - -fprint-explicit-foralls
+    - -fprint-explicit-kinds
+    - -Wunused-do-bind
+  dependencies:
+    - text
+    - vector
+    - megaparsec
+    - mtl
+    
 executables:
   list-concat-exe:
     main:                Main.hs
@@ -25,10 +108,20 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -Werror
     - -Wall
-    - -Wno-unused-do-bind
-    - -Wpartial-fields
+    - -Wcompat
     - -Wincomplete-uni-patterns
+    - -Wno-unused-do-bind
+    - -Wno-partial-type-signatures
+    - -Wmissing-export-lists
+    - -Wincomplete-record-updates
+    - -Wmissing-deriving-strategies
+    - -Wno-name-shadowing
+    - -Wunused-foralls
+    - -fprint-explicit-foralls
+    - -fprint-explicit-kinds
+    - -Wunused-do-bind
     dependencies:
-    - coinflow
+    - horth
 
