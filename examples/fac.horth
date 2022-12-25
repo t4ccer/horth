@@ -1,0 +1,13 @@
+proc fac (int -> int)
+  proc fac_go (int int -> int int)
+    dup 0 eqi not
+    if
+      swap over mul swap
+      1 sub
+      fac_go
+    end
+  end
+  1 swap fac_go pop
+end
+
+5 fac

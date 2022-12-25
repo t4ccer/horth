@@ -1,4 +1,4 @@
-module Parser where
+module Parser () where
 
 -- import Text.Megaparsec
 -- import Text.Megaparsec.Char
@@ -25,12 +25,12 @@ module Parser where
 --   pure opCodes
 
 -- opCode :: Parser OpCodeWithLabels
--- opCode = asum $ fmap try $ 
+-- opCode = asum $ fmap try $
 --   [ labelDeclP
 --   , labelRefP
 --   , numLitP
 --   , boolLitP
-  
+
 --   , keywordP "add" $ Intr Add
 --   , keywordP "sub" $ Intr Sub
 --   , keywordP "mul" $ Intr Mul

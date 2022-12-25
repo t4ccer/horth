@@ -1,13 +1,11 @@
+{-# OPTIONS_GHC -Wno-missing-export-lists #-}
+
 module Types where
 
-import Data.Text (Text)
-import Data.Text qualified as Text
-import Data.Kind (Type)
-import Data.Void (Void)
-import Data.Functor.Const (Const)
-import Data.Functor.Identity (Identity)
 import Control.Monad.Reader (MonadReader, Reader)
 import Control.Monad.State (MonadState, StateT)
+import Data.Text (Text)
+import Data.Text qualified as Text
 import Data.Vector (Vector)
 
 -- * Bare VM
@@ -39,36 +37,36 @@ prettyLit (LitAddr addr) = prettyAddr addr
 
 newtype Addr = Addr {getAddr :: Int}
   deriving stock (Show, Eq)
-  deriving newtype Num
+  deriving newtype (Num)
 
 prettyAddr :: Addr -> Text
 prettyAddr (Addr addr) = "#" <> Text.pack (show addr)
 
 data Intrinsic
-  = Add
-  -- ^ Add the top two elements of the stack, pushing the result
-  | Sub
-  -- ^ Subtract the top two elements of the stack, pushing the result
-  | Mul
-  -- ^ Multiply the top two elements of the stack, pushing the result
-  | Div
-  -- ^ Divide the top two elements of the stack, pushing the result
-  | EqI
-  -- ^ Compare the top two elements of the stack for equality, pushing the result
-  | Not
-  -- ^ Negate the top element of the stack
-  | Jmp
-  -- ^ Jump to the address on the top of the stack
-  | Jet
-  -- ^ (addr : cond : _) -> if cond then jump to addr else continue
-  | Dup
-  -- ^ Duplicate the top element of the stack
-  | Swap
-  -- ^ Swap the top two elements of the stack
-  | Pop
-  -- ^ Pop the top element of the stack
-  | Over
-  -- ^ Duplicate the second element of the stack
+  = -- | Add the top two elements of the stack, pushing the result
+    Add
+  | -- | Subtract the top two elements of the stack, pushing the result
+    Sub
+  | -- | Multiply the top two elements of the stack, pushing the result
+    Mul
+  | -- | Divide the top two elements of the stack, pushing the result
+    Div
+  | -- | Compare the top two elements of the stack for equality, pushing the result
+    EqI
+  | -- | Negate the top element of the stack
+    Not
+  | -- | Jump to the address on the top of the stack
+    Jmp
+  | -- | (addr : cond : _) -> if cond then jump to addr else continue
+    Jet
+  | -- | Duplicate the top element of the stack
+    Dup
+  | -- | Swap the top two elements of the stack
+    Swap
+  | -- | Pop the top element of the stack
+    Pop
+  | -- | Duplicate the second element of the stack
+    Over
   deriving stock (Show, Eq)
 
 prettyIntrinsic :: Intrinsic -> Text
@@ -113,27 +111,33 @@ data Ast
 
 fac_go :: [Ast]
 fac_go =
-  [ AstProc "fac" [HInt] [HInt] 
-    [ AstProc "fac_go" [HInt, HInt] [HInt, HInt]
-      [ AstIntr Dup
-      , AstPushLit (LitInt 0)
-      , AstIntr EqI
-      , AstIntr Not
-      , AstIf
-        [ AstIntr Swap
-        , AstIntr Over
-        , AstIntr Mul
-        , AstIntr Swap
-        , AstPushLit (LitInt 1)
-        , AstIntr Sub
-        , AstName "fac_go"
-        ]
+  [ AstProc
+      "fac"
+      [HInt]
+      [HInt]
+      [ AstProc
+          "fac_go"
+          [HInt, HInt]
+          [HInt, HInt]
+          [ AstIntr Dup
+          , AstPushLit (LitInt 0)
+          , AstIntr EqI
+          , AstIntr Not
+          , AstIf
+              [ AstIntr Swap
+              , AstIntr Over
+              , AstIntr Mul
+              , AstIntr Swap
+              , AstPushLit (LitInt 1)
+              , AstIntr Sub
+              , AstName "fac_go"
+              ]
+          ]
+      , AstPushLit (LitInt 1)
+      , AstIntr Swap
+      , AstName "fac_go"
+      , AstIntr Pop
       ]
-    , AstPushLit (LitInt 1)
-    , AstIntr Swap
-    , AstName "fac_go"
-    , AstIntr Pop
-    ]
   , AstPushLit (LitInt 5)
   , AstName "fac"
   ]
