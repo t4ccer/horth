@@ -97,8 +97,10 @@ library:
   dependencies:
     - text
     - vector
+    - fixed-vector
     - megaparsec
     - mtl
+    - transformers
     
 executables:
   list-concat-exe:

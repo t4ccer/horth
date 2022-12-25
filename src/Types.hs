@@ -1,6 +1,7 @@
 module Types where
 
 import Data.Text (Text)
+import Data.Text qualified as Text
 import Data.Kind (Type)
 import Data.Void (Void)
 import Data.Functor.Const (Const)
@@ -9,24 +10,20 @@ import Control.Monad.Reader (MonadReader, Reader)
 import Control.Monad.State (MonadState, StateT)
 import Data.Vector (Vector)
 
-data OpCode' (f :: Type -> Type)
-  = PushLit Lit
-  -- ^ Push a literal value onto the stack
-  | Intr Intrinsic
-  -- ^ Perform an intrinsic operation
-  | Name Text
-  -- ^ Push a named value onto the stack
-  | LabelDecl (f Text)
-  -- ^ Declare a label, which can be jumped to. noop in compiled code
-  | LabelRef (f Text)
-  -- ^ Resolves to address of the label
+-- * Bare VM
 
-deriving stock instance Show (f Text) => Show (OpCode' f)
-deriving stock instance Eq (f Text) => Eq (OpCode' f)
+data OpCode
+  = OpCodePushLit Lit
+  | OpCodeIntr Intrinsic
+  | OpCodePushToCallStack Addr
+  | OpCodePopJmpFromCallStack
+  deriving stock (Eq, Show)
 
-type OpCode = OpCode' (Const Void)
-
-type OpCodeWithLabels = OpCode' Identity
+prettyOpCode :: OpCode -> Text
+prettyOpCode (OpCodePushLit lit) = "push " <> prettyLit lit
+prettyOpCode (OpCodeIntr intr) = prettyIntrinsic intr
+prettyOpCode (OpCodePushToCallStack addr) = "pushCall " <> prettyAddr addr
+prettyOpCode OpCodePopJmpFromCallStack = "popCall"
 
 data Lit
   = LitInt Integer
@@ -34,9 +31,18 @@ data Lit
   | LitAddr Addr
   deriving stock (Show, Eq)
 
+prettyLit :: Lit -> Text
+prettyLit (LitInt i) = Text.pack $ show i
+prettyLit (LitBool True) = "true"
+prettyLit (LitBool False) = "false"
+prettyLit (LitAddr addr) = prettyAddr addr
+
 newtype Addr = Addr {getAddr :: Int}
   deriving stock (Show, Eq)
   deriving newtype Num
+
+prettyAddr :: Addr -> Text
+prettyAddr (Addr addr) = "#" <> Text.pack (show addr)
 
 data Intrinsic
   = Add
@@ -51,6 +57,8 @@ data Intrinsic
   -- ^ Compare the top two elements of the stack for equality, pushing the result
   | Not
   -- ^ Negate the top element of the stack
+  | Jmp
+  -- ^ Jump to the address on the top of the stack
   | Jet
   -- ^ (addr : cond : _) -> if cond then jump to addr else continue
   | Dup
@@ -58,8 +66,13 @@ data Intrinsic
   | Swap
   -- ^ Swap the top two elements of the stack
   | Pop
+  -- ^ Pop the top element of the stack
   | Over
+  -- ^ Duplicate the second element of the stack
   deriving stock (Show, Eq)
+
+prettyIntrinsic :: Intrinsic -> Text
+prettyIntrinsic intr = Text.toLower $ Text.pack $ show intr
 
 newtype Stack = Stack {getStack :: [Lit]}
   deriving stock (Show, Eq)
@@ -70,6 +83,7 @@ newtype Code = Code {getCode :: Vector OpCode}
 data MachineState = MachineState
   { stack :: Stack
   , pc :: Addr
+  , callStack :: [Addr]
   }
   deriving stock (Show, Eq)
 
@@ -77,7 +91,8 @@ newtype Machine a = Machine {runMachine :: StateT MachineState (Reader Code) a}
   deriving newtype (Functor, Applicative, Monad, MonadState MachineState, MonadReader Code)
 
 instance MonadFail Machine where
-  fail = error
+  -- NOTE: Machine should never need to fail after typechecking
+  fail s = error $ "fail(Machine): " <> s <> ". This is a bug."
 
 data HType
   = HInt
@@ -85,3 +100,40 @@ data HType
   | HAddr
   | HTypeVar Integer
   deriving stock (Show, Eq)
+
+-- * Rich AST
+
+data Ast
+  = AstPushLit Lit
+  | AstIntr Intrinsic
+  | AstName Text
+  | AstIf [Ast]
+  | AstProc Text [HType] [HType] [Ast]
+  deriving stock (Show, Eq)
+
+fac_go :: [Ast]
+fac_go =
+  [ AstProc "fac" [HInt] [HInt] 
+    [ AstProc "fac_go" [HInt, HInt] [HInt, HInt]
+      [ AstIntr Dup
+      , AstPushLit (LitInt 0)
+      , AstIntr EqI
+      , AstIntr Not
+      , AstIf
+        [ AstIntr Swap
+        , AstIntr Over
+        , AstIntr Mul
+        , AstIntr Swap
+        , AstPushLit (LitInt 1)
+        , AstIntr Sub
+        , AstName "fac_go"
+        ]
+      ]
+    , AstPushLit (LitInt 1)
+    , AstIntr Swap
+    , AstName "fac_go"
+    , AstIntr Pop
+    ]
+  , AstPushLit (LitInt 5)
+  , AstName "fac"
+  ]
