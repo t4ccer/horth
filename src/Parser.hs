@@ -1,90 +1,127 @@
-module Parser () where
+module Parser (horthParser) where
 
--- import Text.Megaparsec
--- import Text.Megaparsec.Char
--- import Data.Text (Text)
--- import Data.Text qualified as Text
--- import Control.Applicative (asum)
--- import Control.Monad (void)
--- import Data.Functor.Identity (Identity (Identity))
+import Control.Applicative (asum)
+import Control.Monad (guard, void)
+import Data.Char (isSpace)
+import Data.Functor.Identity (Identity (Identity))
+import Data.Text (Text)
+import Data.Text qualified as Text
+import Text.Megaparsec
+import Text.Megaparsec.Char
 
--- import Types
+import Types
 
--- data HParseError = HParseError String
---   deriving stock (Show, Eq, Ord)
+data HParseError = HParseError String
+  deriving stock (Show, Eq, Ord)
 
--- instance ShowErrorComponent HParseError where
---   showErrorComponent (HParseError s) = s
+instance ShowErrorComponent HParseError where
+  showErrorComponent (HParseError s) = s
 
--- type Parser = Parsec HParseError Text
+type Parser = Parsec HParseError Text
 
--- horthParser :: Parser [OpCodeWithLabels]
--- horthParser = do
---   opCodes <- many opCode
---   eof
---   pure opCodes
+horthParser :: Parser [Ast]
+horthParser = do
+  ast <- many horthP
+  eof
+  pure ast
 
--- opCode :: Parser OpCodeWithLabels
--- opCode = asum $ fmap try $
---   [ labelDeclP
---   , labelRefP
---   , numLitP
---   , boolLitP
+horthP :: Parser Ast
+horthP =
+  asum $
+    fmap
+      try
+      [ procP
+      , ifP
+      , numLitP
+      , boolLitP
+      , keywordP "add" (AstIntr Add)
+      , keywordP "sub" (AstIntr Sub)
+      , keywordP "mul" (AstIntr Mul)
+      , keywordP "div" (AstIntr Div)
+      , keywordP "eqi" (AstIntr EqI)
+      , keywordP "not" (AstIntr Not)
+      , keywordP "dup" (AstIntr Dup)
+      , keywordP "swap" (AstIntr Swap)
+      , keywordP "pop" (AstIntr Pop)
+      , keywordP "over" (AstIntr Over)
+      , nameP
+      ]
 
---   , keywordP "add" $ Intr Add
---   , keywordP "sub" $ Intr Sub
---   , keywordP "mul" $ Intr Mul
---   , keywordP "div" $ Intr Div
---   , keywordP "eqi" $ Intr EqI
---   , keywordP "not" $ Intr Not
---   , keywordP "jet" $ Intr Jet
---   , keywordP "dup" $ Intr Dup
---   , keywordP "swap" $ Intr Swap
---   , keywordP "pop" $ Intr Pop
---   , keywordP "over" $ Intr Over
+procP :: Parser Ast
+procP = do
+  void $ string "proc"
+  whiteSpaceP
+  procName <- Text.pack <$> some notSpaceChar
+  whiteSpaceP
+  void $ char '('
+  void $ optional whiteSpaceP
+  inTy <- many tyParser
+  void $ string "->"
+  void $ optional whiteSpaceP
+  outTy <- many tyParser
+  void $ optional whiteSpaceP
+  void $ char ')'
+  whiteSpaceP
 
---   , nameP
---   ]
+  procAst <- many horthP
 
--- whiteSpace :: Parser ()
--- whiteSpace = skipSome spaceChar <|> eof
+  void $ string "end"
+  whiteSpaceEndP
+  pure $ AstProc procName inTy outTy procAst
 
--- labelDeclP :: Parser OpCodeWithLabels
--- labelDeclP = do
---   label <- some alphaNumChar
---   void $ char ':'
---   whiteSpace
---   pure $ LabelDecl $ Identity $ Text.pack label
+ifP :: Parser Ast
+ifP = do
+  void $ string "if" >> whiteSpaceP
 
--- labelRefP :: Parser OpCodeWithLabels
--- labelRefP = do
---   void $ char '!'
---   label <- some alphaNumChar
---   whiteSpace
---   pure $ LabelRef $ Identity $ Text.pack label
+  ifAst <- many horthP
 
--- numLitP :: Parser OpCodeWithLabels
--- numLitP = do
---   num <- some digitChar
---   whiteSpace
---   return $ PushLit $ LitInt $ read num
+  void $ string "end" >> whiteSpaceEndP
+  pure $ AstIf ifAst
 
--- boolLitP :: Parser OpCodeWithLabels
--- boolLitP = do
---   bool <- asum
---     [ keywordP "true" $ PushLit $ LitBool True
---     , keywordP "false" $ PushLit $ LitBool False
---     ]
---   pure bool
+nameP :: Parser Ast
+nameP = do
+  name <- Text.pack <$> some notSpaceChar
+  guard $ notElem name ["proc", "if", "end"]
+  whiteSpaceEndP
+  pure $ AstName name
 
--- keywordP :: Text -> OpCodeWithLabels -> Parser OpCodeWithLabels
--- keywordP keyword opCode = do
---   void $ string keyword
---   whiteSpace
---   pure opCode
+tyParser :: Parser HType
+tyParser = do
+  ty <-
+    asum
+      [ HInt <$ string "int"
+      , HBool <$ string "bool"
+      ]
+  void $ optional whiteSpaceP
+  pure ty
 
--- nameP :: Parser OpCodeWithLabels
--- nameP = do
---   name <- some alphaNumChar
---   whiteSpace
---   pure $ Name $ Text.pack name
+notSpaceChar :: (MonadParsec e s m, Token s ~ Char) => m (Token s)
+notSpaceChar = satisfy (not . isSpace) <?> "not white space"
+{-# INLINE notSpaceChar #-}
+
+whiteSpaceP :: Parser ()
+whiteSpaceP = skipSome spaceChar
+
+whiteSpaceEndP :: Parser ()
+whiteSpaceEndP = whiteSpaceP <|> eof
+
+numLitP :: Parser Ast
+numLitP = do
+  num <- some digitChar
+  whiteSpaceEndP
+  return $ AstPushLit $ LitInt $ read num
+
+boolLitP :: Parser Ast
+boolLitP = do
+  bool <-
+    asum
+      [ keywordP "true" $ AstPushLit $ LitBool True
+      , keywordP "false" $ AstPushLit $ LitBool False
+      ]
+  pure bool
+
+keywordP :: Show ast => Text -> ast -> Parser ast
+keywordP keyword ast = do
+  void $ string keyword
+  whiteSpaceEndP
+  pure ast

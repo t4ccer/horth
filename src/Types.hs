@@ -108,36 +108,3 @@ data Ast
   | AstIf [Ast]
   | AstProc Text [HType] [HType] [Ast]
   deriving stock (Show, Eq)
-
-fac_go :: [Ast]
-fac_go =
-  [ AstProc
-      "fac"
-      [HInt]
-      [HInt]
-      [ AstProc
-          "fac_go"
-          [HInt, HInt]
-          [HInt, HInt]
-          [ AstIntr Dup
-          , AstPushLit (LitInt 0)
-          , AstIntr EqI
-          , AstIntr Not
-          , AstIf
-              [ AstIntr Swap
-              , AstIntr Over
-              , AstIntr Mul
-              , AstIntr Swap
-              , AstPushLit (LitInt 1)
-              , AstIntr Sub
-              , AstName "fac_go"
-              ]
-          ]
-      , AstPushLit (LitInt 1)
-      , AstIntr Swap
-      , AstName "fac_go"
-      , AstIntr Pop
-      ]
-  , AstPushLit (LitInt 5)
-  , AstName "fac"
-  ]

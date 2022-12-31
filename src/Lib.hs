@@ -3,12 +3,13 @@ module Lib (main) where
 import Control.Monad (void)
 import Control.Monad.Reader (asks, runReader)
 import Control.Monad.State (evalStateT, gets, modify)
+import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
 import Data.Vector qualified as V
-import Text.Megaparsec ()
+import Text.Megaparsec (parse)
 
 import Compiler
-import Parser ()
+import Parser (horthParser)
 import TypeChecker
 import Types
 
@@ -121,15 +122,20 @@ interpret = runReader (evalStateT (runMachine interpret') (MachineState (Stack [
 main :: IO ()
 main = do
   putStrLn ""
-  case typeCheck fac_go of
-    Left err -> Text.putStrLn err
-    Right (ast, ty) -> do
-      print ty
-      case compileHorth ast of
-        Left (CompileError err) -> Text.putStrLn err
-        Right opCodes -> do
-          -- mapM_ (\(i, op) -> Text.putStrLn (prettyAddr (Addr i) <> ": " <> prettyOpCode op)) $ zip [0..] $ V.toList $ getCode opCodes
-          Text.putStrLn ""
-          print $ opCodes
-          Text.putStrLn ""
-          print $ interpret opCodes
+  let fp = "examples/fac.horth"
+  sourceCode <- Text.readFile fp
+  parsedAst <- case parse horthParser fp sourceCode of
+    Left e -> error $ show e
+    Right ast -> pure ast
+
+  (ast, ty) <- case typeCheck parsedAst of
+    Left err -> error $ Text.unpack err
+    Right res -> pure res
+
+  putStrLn $ "Program type: " <> show ty
+
+  opCode <- case compileHorth ast of
+    Left err -> error $ show err
+    Right opCode -> pure opCode
+
+  print $ interpret opCode
