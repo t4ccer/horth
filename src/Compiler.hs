@@ -2,13 +2,11 @@
 
 module Compiler (CompileError (..), compileHorth) where
 
-import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.Fix (MonadFix)
-import Control.Monad.Reader (MonadReader, ReaderT, asks, local, runReaderT)
+import Control.Monad.Reader (MonadReader, Reader, asks, local, runReader)
 import Control.Monad.State (MonadState, StateT, execStateT, gets, modify)
 import Data.List.NonEmpty (NonEmpty ((:|)), nonEmpty)
 import Data.Text (Text)
-import Data.Text qualified as Text
 import Data.Vector qualified as V
 
 import Types
@@ -30,16 +28,18 @@ data CompilationEnv = CompilationEnv
   deriving stock (Show, Eq)
 
 newtype CompilationM a = CompilationM
-  { runCompilationM :: (StateT CompilationState (ReaderT CompilationEnv (Either CompileError))) a
+  { runCompilationM :: (StateT CompilationState (Reader CompilationEnv)) a
   }
-  deriving newtype (Functor, Applicative, Monad, MonadReader CompilationEnv, MonadState CompilationState, MonadError CompileError, MonadFix)
+  deriving newtype (Functor, Applicative, Monad, MonadReader CompilationEnv, MonadState CompilationState, MonadFix)
 
--- TODO: No type checking for now
-compileHorth :: [Ast] -> Either CompileError Code
-compileHorth [] = pure $ Code V.empty
+compileHorth :: [Ast] -> Code
+compileHorth [] = Code V.empty
 compileHorth (allAst : allAsts) =
-  fmap (Code . V.fromList . reverse . compilationStateEmited)
-    . flip runReaderT (CompilationEnv (allAst :| allAsts))
+  Code
+    . V.fromList
+    . reverse
+    . compilationStateEmited
+    . flip runReader (CompilationEnv (allAst :| allAsts))
     . flip execStateT (CompilationState [] 0 [])
     . runCompilationM
     $ compileHorth'
@@ -65,13 +65,12 @@ compileHorth (allAst : allAsts) =
       labels <- gets compilationStateLabels
       case lookup name labels of
         Nothing ->
-          throwError $
-            CompileError $
-              Text.pack $
-                mconcat
-                  [ "Unknown procedure: " -- NOTE: Shouldn't happen after type checking
-                  , show name
-                  ]
+          error $
+            mconcat
+              [ "Unknown procedure: "
+              , show name
+              , ".\nThis shouldn't happen after type checking"
+              ]
         Just addr -> pure addr
 
     saveProcAddr :: Text -> Addr -> CompilationM ()

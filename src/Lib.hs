@@ -134,8 +134,5 @@ main = do
 
   putStrLn $ "Program type: " <> show ty
 
-  opCode <- case compileHorth ast of
-    Left err -> error $ show err
-    Right opCode -> pure opCode
-
+  let opCode = compileHorth ast
   print $ interpret opCode
