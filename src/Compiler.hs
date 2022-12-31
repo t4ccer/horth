@@ -9,6 +9,7 @@ import Data.List.NonEmpty (NonEmpty ((:|)), nonEmpty)
 import Data.Text (Text)
 import Data.Vector qualified as V
 
+import TypeChecker (TypeCheckedAst (getTypeCheckedAst))
 import Types
 
 data CompileError
@@ -32,9 +33,9 @@ newtype CompilationM a = CompilationM
   }
   deriving newtype (Functor, Applicative, Monad, MonadReader CompilationEnv, MonadState CompilationState, MonadFix)
 
-compileHorth :: [Ast] -> Code
-compileHorth [] = Code V.empty
-compileHorth (allAst : allAsts) =
+compileHorth :: TypeCheckedAst -> Code
+compileHorth (getTypeCheckedAst -> []) = Code V.empty
+compileHorth (getTypeCheckedAst -> (allAst : allAsts)) =
   Code
     . V.fromList
     . reverse

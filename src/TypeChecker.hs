@@ -1,4 +1,4 @@
-module TypeChecker (typeCheck, TypeError) where
+module TypeChecker (typeCheck, TypeError, TypeCheckedAst (getTypeCheckedAst)) where
 
 import Control.Monad (unless, void, when)
 import Control.Monad.Except (MonadError, throwError)
@@ -13,6 +13,9 @@ import Data.Text qualified as Text
 import Types
 
 type TypeError = Text
+
+newtype TypeCheckedAst = TypeCheckedAst {getTypeCheckedAst :: [Ast]}
+  deriving stock (Eq, Show)
 
 data TypeCheckState = TypeCheckState
   { typeCheckStack :: [HType]
@@ -71,10 +74,10 @@ stacksEqual = stacksEqual' mempty
     stacksEqual' tyVars (t1 :> ts1) (t2 :> ts2) =
       t1 == t2 && stacksEqual' tyVars ts1 ts2
 
-typeCheck :: [Ast] -> Either TypeError ([Ast], [HType])
-typeCheck [] = pure ([], [])
+typeCheck :: [Ast] -> Either TypeError (TypeCheckedAst, [HType])
+typeCheck [] = pure (TypeCheckedAst [], [])
 typeCheck ast@(a : as) =
-  fmap (\st -> (ast, typeCheckStack st))
+  fmap (\st -> (TypeCheckedAst ast, typeCheckStack st))
     . flip runReaderT (a :| as)
     . flip execStateT (TypeCheckState [] [] 0)
     . runTypeCheckMachine
