@@ -1,4 +1,4 @@
-module TypeChecker (typeCheck, TypeError, TypeCheckedAst (getTypeCheckedAst)) where
+module Horth.TypeChecker (typeCheck, TypeError, TypeCheckedAst (getTypeCheckedAst)) where
 
 import Control.Monad (unless, void, when)
 import Control.Monad.Except (MonadError, throwError)
@@ -10,7 +10,7 @@ import Data.String (fromString)
 import Data.Text (Text)
 import Data.Text qualified as Text
 
-import Types
+import Horth.Types
 
 type TypeError = Text
 

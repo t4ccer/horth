@@ -1,17 +1,25 @@
-module Lib (main) where
+module Horth.Interpreter (interpret) where
 
 import Control.Monad (void)
-import Control.Monad.Reader (asks, runReader)
-import Control.Monad.State (evalStateT, gets, modify)
-import Data.Text qualified as Text
-import Data.Text.IO qualified as Text
+import Control.Monad.Reader (MonadReader, Reader, asks, runReader)
+import Control.Monad.State (MonadState, StateT, evalStateT, gets, modify)
 import Data.Vector qualified as V
-import Text.Megaparsec (parse)
 
-import Compiler
-import Parser (horthParser)
-import TypeChecker
-import Types
+import Horth.Types
+
+data MachineState = MachineState
+  { stack :: Stack
+  , pc :: Addr
+  , callStack :: [Addr]
+  }
+  deriving stock (Show, Eq)
+
+newtype Machine a = Machine {runMachine :: StateT MachineState (Reader Code) a}
+  deriving newtype (Functor, Applicative, Monad, MonadState MachineState, MonadReader Code)
+
+instance MonadFail Machine where
+  -- NOTE: Machine should never need to fail after typechecking
+  fail s = error $ "fail(Machine): " <> s <> ". This is a bug."
 
 interpret :: Code -> Stack
 interpret = runReader (evalStateT (runMachine interpret') (MachineState (Stack []) 0 []))
@@ -118,21 +126,3 @@ interpret = runReader (evalStateT (runMachine interpret') (MachineState (Stack [
 
       done <- isDone
       if done then gets stack else interpret'
-
-main :: IO ()
-main = do
-  putStrLn ""
-  let fp = "examples/fac.horth"
-  sourceCode <- Text.readFile fp
-  parsedAst <- case parse horthParser fp sourceCode of
-    Left e -> error $ show e
-    Right ast -> pure ast
-
-  (ast, ty) <- case typeCheck parsedAst of
-    Left err -> error $ Text.unpack err
-    Right res -> pure res
-
-  putStrLn $ "Program type: " <> show ty
-
-  let opCode = compileHorth ast
-  print $ interpret opCode

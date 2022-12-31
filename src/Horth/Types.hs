@@ -1,9 +1,7 @@
 {-# OPTIONS_GHC -Wno-missing-export-lists #-}
 
-module Types where
+module Horth.Types where
 
-import Control.Monad.Reader (MonadReader, Reader)
-import Control.Monad.State (MonadState, StateT)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Vector (Vector)
@@ -77,20 +75,6 @@ newtype Stack = Stack {getStack :: [Lit]}
 
 newtype Code = Code {getCode :: Vector OpCode}
   deriving stock (Show, Eq)
-
-data MachineState = MachineState
-  { stack :: Stack
-  , pc :: Addr
-  , callStack :: [Addr]
-  }
-  deriving stock (Show, Eq)
-
-newtype Machine a = Machine {runMachine :: StateT MachineState (Reader Code) a}
-  deriving newtype (Functor, Applicative, Monad, MonadState MachineState, MonadReader Code)
-
-instance MonadFail Machine where
-  -- NOTE: Machine should never need to fail after typechecking
-  fail s = error $ "fail(Machine): " <> s <> ". This is a bug."
 
 data HType
   = HInt

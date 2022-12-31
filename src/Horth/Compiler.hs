@@ -1,6 +1,6 @@
 {-# LANGUAGE RecursiveDo #-}
 
-module Compiler (CompileError (..), compileHorth) where
+module Horth.Compiler (CompileError (..), compile) where
 
 import Control.Monad.Fix (MonadFix)
 import Control.Monad.Reader (MonadReader, Reader, asks, local, runReader)
@@ -9,8 +9,8 @@ import Data.List.NonEmpty (NonEmpty ((:|)), nonEmpty)
 import Data.Text (Text)
 import Data.Vector qualified as V
 
-import TypeChecker (TypeCheckedAst (getTypeCheckedAst))
-import Types
+import Horth.TypeChecker (TypeCheckedAst (getTypeCheckedAst))
+import Horth.Types
 
 data CompileError
   = CompileError Text
@@ -33,9 +33,9 @@ newtype CompilationM a = CompilationM
   }
   deriving newtype (Functor, Applicative, Monad, MonadReader CompilationEnv, MonadState CompilationState, MonadFix)
 
-compileHorth :: TypeCheckedAst -> Code
-compileHorth (getTypeCheckedAst -> []) = Code V.empty
-compileHorth (getTypeCheckedAst -> (allAst : allAsts)) =
+compile :: TypeCheckedAst -> Code
+compile (getTypeCheckedAst -> []) = Code V.empty
+compile (getTypeCheckedAst -> (allAst : allAsts)) =
   Code
     . V.fromList
     . reverse
@@ -43,7 +43,7 @@ compileHorth (getTypeCheckedAst -> (allAst : allAsts)) =
     . flip runReader (CompilationEnv (allAst :| allAsts))
     . flip execStateT (CompilationState [] 0 [])
     . runCompilationM
-    $ compileHorth'
+    $ compile'
   where
     emit :: OpCode -> CompilationM ()
     emit op =
@@ -58,7 +58,7 @@ compileHorth (getTypeCheckedAst -> (allAst : allAsts)) =
     -- Continue compiling rest of ast in a block
     continueLinear :: [Ast] -> CompilationM ()
     continueLinear [] = pure ()
-    continueLinear (a : as) = local (\e -> e {compilationEnvAst = a :| as}) compileHorth'
+    continueLinear (a : as) = local (\e -> e {compilationEnvAst = a :| as}) compile'
 
     -- TODO: Location
     getProcAddr :: Text -> CompilationM Addr
@@ -84,8 +84,8 @@ compileHorth (getTypeCheckedAst -> (allAst : allAsts)) =
         )
 
     -- FIXME: proc must be defined before call
-    compileHorth' :: CompilationM ()
-    compileHorth' = do
+    compile' :: CompilationM ()
+    compile' = do
       currAst :| restAst <- asks compilationEnvAst
       case currAst of
         AstPushLit lit -> do
@@ -102,7 +102,7 @@ compileHorth (getTypeCheckedAst -> (allAst : allAsts)) =
             Nothing -> pure ()
             Just ifAst' -> do
               labels <- gets compilationStateLabels
-              local (\e -> e {compilationEnvAst = ifAst'}) compileHorth'
+              local (\e -> e {compilationEnvAst = ifAst'}) compile'
               modify (\s -> s {compilationStateLabels = labels})
           addrAfterIfBranch <- gets compilationStateNextAddr
           continueLinear restAst
@@ -122,7 +122,7 @@ compileHorth (getTypeCheckedAst -> (allAst : allAsts)) =
             Nothing -> pure ()
             Just procAst' -> do
               labels <- gets compilationStateLabels
-              local (\e -> e {compilationEnvAst = procAst'}) compileHorth'
+              local (\e -> e {compilationEnvAst = procAst'}) compile'
               modify (\s -> s {compilationStateLabels = labels})
           emit OpCodePopJmpFromCallStack
           addrAfterProc <- gets compilationStateNextAddr

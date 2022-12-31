@@ -126,4 +126,4 @@ executables:
     - -Wunused-do-bind
     dependencies:
     - horth
-
+    - text

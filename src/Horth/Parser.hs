@@ -1,15 +1,14 @@
-module Parser (horthParser) where
+module Horth.Parser (horthParser, Horth.Parser.parse) where
 
 import Control.Applicative (asum)
 import Control.Monad (guard, void)
 import Data.Char (isSpace)
-import Data.Functor.Identity (Identity (Identity))
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Text.Megaparsec
 import Text.Megaparsec.Char
 
-import Types
+import Horth.Types
 
 data HParseError = HParseError String
   deriving stock (Show, Eq, Ord)
@@ -18,6 +17,9 @@ instance ShowErrorComponent HParseError where
   showErrorComponent (HParseError s) = s
 
 type Parser = Parsec HParseError Text
+
+parse :: FilePath -> Text -> Either (ParseErrorBundle Text HParseError) [Ast]
+parse = Text.Megaparsec.parse horthParser
 
 horthParser :: Parser [Ast]
 horthParser = do
