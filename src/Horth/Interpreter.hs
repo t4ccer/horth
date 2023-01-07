@@ -1,9 +1,9 @@
 module Horth.Interpreter (interpret) where
 
 import Control.Monad (void)
+import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Reader (MonadReader, ReaderT, asks, runReaderT)
 import Control.Monad.State (MonadState, StateT, evalStateT, gets, modify)
-import Control.Monad.IO.Class (MonadIO (liftIO))
 import Data.Vector qualified as V
 
 import Horth.Types

@@ -27,13 +27,12 @@
         system,
         ...
       }: {
-        
         pre-commit.settings = {
           hooks = {
             alejandra.enable = true;
           };
         };
-        
+
         cabalPackages = {
           horth = {
             inherit pkgs;
@@ -42,7 +41,7 @@
             id = "horth-0.1.0.0-inplace-horth";
           };
         };
-        
+
         devShells.default = let
           stackWithSystemGHC = pkgs.writeShellScriptBin "stack" ''
             ${pkgs.stack}/bin/stack --system-ghc --no-nix "$@"

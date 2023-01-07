@@ -178,7 +178,7 @@ typeCheck ast@(a : as) =
           void $ popTypes (HInt :> HInt :> Nil) pos
           pushType HInt
           continueLinear restAst
-        AstIntr Sub pos -> do 
+        AstIntr Sub pos -> do
           void $ popTypes (HInt :> HInt :> Nil) pos
           pushType HInt
           continueLinear restAst
@@ -307,4 +307,3 @@ typeCheck ast@(a : as) =
           modify (\s -> s {typeCheckStack = drop (length inType) (typeCheckStack s)})
           modify (\s -> s {typeCheckStack = outType ++ typeCheckStack s})
           continueLinear restAst
-

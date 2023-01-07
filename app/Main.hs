@@ -1,13 +1,13 @@
 module Main (main) where
 
 import Data.Text.IO qualified as Text
-import System.IO (stderr)
 import System.Exit (exitFailure)
+import System.IO (stderr)
 
 import Horth.Compiler (compile)
+import Horth.Interpreter (interpret)
 import Horth.Parser (parse)
 import Horth.TypeChecker (typeCheck)
-import Horth.Interpreter (interpret)
 
 main :: IO ()
 main = do
