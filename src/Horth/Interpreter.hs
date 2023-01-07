@@ -1,8 +1,9 @@
 module Horth.Interpreter (interpret) where
 
 import Control.Monad (void)
-import Control.Monad.Reader (MonadReader, Reader, asks, runReader)
+import Control.Monad.Reader (MonadReader, ReaderT, asks, runReaderT)
 import Control.Monad.State (MonadState, StateT, evalStateT, gets, modify)
+import Control.Monad.IO.Class (MonadIO (liftIO))
 import Data.Vector qualified as V
 
 import Horth.Types
@@ -14,15 +15,15 @@ data MachineState = MachineState
   }
   deriving stock (Show, Eq)
 
-newtype Machine a = Machine {runMachine :: StateT MachineState (Reader Code) a}
-  deriving newtype (Functor, Applicative, Monad, MonadState MachineState, MonadReader Code)
+newtype Machine a = Machine {runMachine :: StateT MachineState (ReaderT Code IO) a}
+  deriving newtype (Functor, Applicative, Monad, MonadIO, MonadState MachineState, MonadReader Code)
 
 instance MonadFail Machine where
   -- NOTE: Machine should never need to fail after typechecking
   fail s = error $ "fail(Machine): " <> s <> ". This is a bug."
 
-interpret :: Code -> Stack
-interpret = runReader (evalStateT (runMachine interpret') (MachineState (Stack []) 0 []))
+interpret :: Code -> IO Stack
+interpret = runReaderT (evalStateT (runMachine interpret') (MachineState (Stack []) 0 []))
   where
     isDone :: Machine Bool
     isDone = do
@@ -115,6 +116,10 @@ interpret = runReader (evalStateT (runMachine interpret') (MachineState (Stack [
           push b
           push a
           push b
+          incrementPC
+        OpCodeIntr PrintI -> do
+          LitInt a <- pop
+          liftIO $ print a
           incrementPC
         OpCodePushToCallStack addr -> do
           modify (\s -> s {callStack = addr : callStack s})

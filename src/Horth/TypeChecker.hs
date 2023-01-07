@@ -223,6 +223,9 @@ typeCheck ast@(a : as) =
           pushType a'
           pushType b'
           continueLinear restAst
+        AstIntr PrintI pos -> do
+          void $ popTypes (HInt :> Nil) pos
+          continueLinear restAst
         AstIntr Jmp _ -> do
           error "'jmp' shouldn't be in the AST"
         AstIntr Jet _ -> do

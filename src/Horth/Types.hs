@@ -66,6 +66,8 @@ data Intrinsic
     Pop
   | -- | Duplicate the second element of the stack
     Over
+  | -- | Print the top element of the stack
+    PrintI
   deriving stock (Show, Eq)
 
 prettyIntrinsic :: Intrinsic -> Text

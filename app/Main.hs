@@ -27,4 +27,4 @@ main = do
   putStrLn $ "Program type: " <> show ty
 
   let opCode = compile ast
-  print $ interpret opCode
+  interpret opCode >>= print

@@ -46,6 +46,7 @@ horthP =
       , keywordP "swap" (AstIntr Swap)
       , keywordP "pop" (AstIntr Pop)
       , keywordP "over" (AstIntr Over)
+      , keywordP "printI" (AstIntr PrintI)
       , nameP
       ]
 
