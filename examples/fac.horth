@@ -10,4 +10,8 @@ proc fac (int -> int)
   1 swap fac_go pop
 end
 
-5 fac
+proc square (int -> int)
+  dup mul
+end
+
+2 square fac

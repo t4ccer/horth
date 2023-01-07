@@ -1,23 +1,158 @@
 {
   "nodes": {
+    "cabal-plan-nix": {
+      "inputs": {
+        "flake-parts": "flake-parts",
+        "nixpkgs": "nixpkgs",
+        "pre-commit-hooks-nix": "pre-commit-hooks-nix"
+      },
+      "locked": {
+        "lastModified": 1672498239,
+        "narHash": "sha256-s6EJojsHS1yXbrn2y0DJbWg14hbAruVLPm0tor3DWTw=",
+        "owner": "t4ccer",
+        "repo": "cabal-plan-nix",
+        "rev": "017b05f72b44ccb8788d7ab5ed0ee8df90e7ca04",
+        "type": "github"
+      },
+      "original": {
+        "owner": "t4ccer",
+        "repo": "cabal-plan-nix",
+        "type": "github"
+      }
+    },
+    "flake-compat": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1668681692,
+        "narHash": "sha256-Ht91NGdewz8IQLtWZ9LCeNXMSXHUss+9COoqu6JLmXU=",
+        "owner": "edolstra",
+        "repo": "flake-compat",
+        "rev": "009399224d5e398d03b22badca40a37ac85412a1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "edolstra",
+        "repo": "flake-compat",
+        "type": "github"
+      }
+    },
+    "flake-parts": {
+      "inputs": {
+        "nixpkgs-lib": [
+          "cabal-plan-nix",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1671710971,
+        "narHash": "sha256-YZdt5IJrfsdUTtVB94EMsBvaJbK9ve6QaZyzRuup+sY=",
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "rev": "98bec08c58a9547d705f2f5e300ac8eef6665e52",
+        "type": "github"
+      },
+      "original": {
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "type": "github"
+      }
+    },
+    "flake-utils": {
+      "locked": {
+        "lastModified": 1667395993,
+        "narHash": "sha256-nuEHfE/LcWyuSWnS8t12N1wc105Qtau+/OdUAjtQ0rA=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "5aed5285a952e0b949eb3ba02c12fa4fcfef535f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "gitignore": {
+      "inputs": {
+        "nixpkgs": [
+          "cabal-plan-nix",
+          "pre-commit-hooks-nix",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1660459072,
+        "narHash": "sha256-8DFJjXG8zqoONA1vXtgeKXy68KdJL5UaXR8NtVMUbx8=",
+        "owner": "hercules-ci",
+        "repo": "gitignore.nix",
+        "rev": "a20de23b925fd8264fd7fad6454652e142fd7f73",
+        "type": "github"
+      },
+      "original": {
+        "owner": "hercules-ci",
+        "repo": "gitignore.nix",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1670708034,
-        "narHash": "sha256-bZXYW7qu/VRD0uweIDHN5Ws+0TRW3I33vTAZ/n+2bIs=",
+        "lastModified": 1671722432,
+        "narHash": "sha256-ojcZUekIQeOZkHHzR81st7qxX99dB1Eaaq6PU5MNeKc=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "1dba7adaf38be385effb1fdc9d7001dd4c455cfa",
+        "rev": "652e92b8064949a11bc193b90b74cb727f2a1405",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
+        "ref": "nixos-unstable",
         "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "pre-commit-hooks-nix": {
+      "inputs": {
+        "flake-compat": "flake-compat",
+        "flake-utils": "flake-utils",
+        "gitignore": "gitignore",
+        "nixpkgs": [
+          "cabal-plan-nix",
+          "nixpkgs"
+        ],
+        "nixpkgs-stable": [
+          "cabal-plan-nix",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1671452357,
+        "narHash": "sha256-HqzXiQEegpRQ4VEl9pEPgHSIxhJrNJ27HfN1wOc7w2E=",
+        "owner": "cachix",
+        "repo": "pre-commit-hooks.nix",
+        "rev": "200790e9c77064c53eaf95805b013d96615ecc27",
+        "type": "github"
+      },
+      "original": {
+        "owner": "cachix",
+        "repo": "pre-commit-hooks.nix",
         "type": "github"
       }
     },
     "root": {
       "inputs": {
-        "nixpkgs": "nixpkgs"
+        "cabal-plan-nix": "cabal-plan-nix",
+        "flake-parts": [
+          "cabal-plan-nix",
+          "flake-parts"
+        ],
+        "nixpkgs": [
+          "cabal-plan-nix",
+          "nixpkgs"
+        ],
+        "pre-commit-hooks-nix": [
+          "cabal-plan-nix",
+          "pre-commit-hooks-nix"
+        ]
       }
     }
   },

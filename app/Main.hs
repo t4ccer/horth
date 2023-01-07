@@ -1,7 +1,8 @@
 module Main (main) where
 
-import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
+import System.IO (stderr)
+import System.Exit (exitFailure)
 
 import Horth.Compiler (compile)
 import Horth.Parser (parse)
@@ -18,7 +19,9 @@ main = do
     Right ast -> pure ast
 
   (ast, ty) <- case typeCheck parsedAst of
-    Left err -> error $ Text.unpack err
+    Left err -> do
+      Text.hPutStrLn stderr err
+      exitFailure
     Right res -> pure res
 
   putStrLn $ "Program type: " <> show ty

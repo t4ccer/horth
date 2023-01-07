@@ -5,6 +5,7 @@ module Horth.Types where
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Vector (Vector)
+import Text.Megaparsec.Pos (SourcePos)
 
 -- * Bare VM
 
@@ -86,9 +87,9 @@ data HType
 -- * Rich AST
 
 data Ast
-  = AstPushLit Lit
-  | AstIntr Intrinsic
-  | AstName Text
-  | AstIf [Ast]
-  | AstProc Text [HType] [HType] [Ast]
+  = AstPushLit Lit SourcePos
+  | AstIntr Intrinsic SourcePos
+  | AstName Text SourcePos
+  | AstIf [Ast] SourcePos
+  | AstProc Text [HType] [HType] [Ast] SourcePos
   deriving stock (Show, Eq)

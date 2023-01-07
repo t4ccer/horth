@@ -88,13 +88,13 @@ compile (getTypeCheckedAst -> (allAst : allAsts)) =
     compile' = do
       currAst :| restAst <- asks compilationEnvAst
       case currAst of
-        AstPushLit lit -> do
+        AstPushLit lit _ -> do
           emit $ OpCodePushLit lit
           continueLinear restAst
-        AstIntr intr -> do
+        AstIntr intr _ -> do
           emit $ OpCodeIntr intr
           continueLinear restAst
-        AstIf ifAst -> mdo
+        AstIf ifAst _ -> mdo
           emit $ OpCodeIntr Not
           emit $ OpCodePushLit (LitAddr addrAfterIfBranch)
           emit $ OpCodeIntr Jet
@@ -106,14 +106,14 @@ compile (getTypeCheckedAst -> (allAst : allAsts)) =
               modify (\s -> s {compilationStateLabels = labels})
           addrAfterIfBranch <- gets compilationStateNextAddr
           continueLinear restAst
-        AstName name -> mdo
+        AstName name _ -> mdo
           emit $ OpCodePushToCallStack callStackRetAddr
           addr <- getProcAddr name
           emit $ OpCodePushLit (LitAddr addr)
           emit $ OpCodeIntr Jmp
           callStackRetAddr <- gets compilationStateNextAddr
           continueLinear restAst
-        AstProc name _inType _outType procAst -> mdo
+        AstProc name _inType _outType procAst _ -> mdo
           emit $ OpCodePushLit (LitAddr addrAfterProc)
           emit $ OpCodeIntr Jmp
           procStartAddr <- gets compilationStateNextAddr

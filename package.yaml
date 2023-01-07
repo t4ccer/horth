@@ -103,7 +103,7 @@ library:
     - transformers
     
 executables:
-  list-concat-exe:
+  horth:
     main:                Main.hs
     source-dirs:         app
     ghc-options:

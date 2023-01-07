@@ -51,6 +51,7 @@ horthP =
 
 procP :: Parser Ast
 procP = do
+  procPos <- getSourcePos
   void $ string "proc"
   whiteSpaceP
   procName <- Text.pack <$> some notSpaceChar
@@ -69,23 +70,25 @@ procP = do
 
   void $ string "end"
   whiteSpaceEndP
-  pure $ AstProc procName inTy outTy procAst
+  pure $ AstProc procName inTy outTy procAst procPos
 
 ifP :: Parser Ast
 ifP = do
+  ifPos <- getSourcePos
   void $ string "if" >> whiteSpaceP
 
   ifAst <- many horthP
 
   void $ string "end" >> whiteSpaceEndP
-  pure $ AstIf ifAst
+  pure $ AstIf ifAst ifPos
 
 nameP :: Parser Ast
 nameP = do
+  namePos <- getSourcePos
   name <- Text.pack <$> some notSpaceChar
   guard $ notElem name ["proc", "if", "end"]
   whiteSpaceEndP
-  pure $ AstName name
+  pure $ AstName name namePos
 
 tyParser :: Parser HType
 tyParser = do
@@ -109,21 +112,21 @@ whiteSpaceEndP = whiteSpaceP <|> eof
 
 numLitP :: Parser Ast
 numLitP = do
+  numPos <- getSourcePos
   num <- some digitChar
   whiteSpaceEndP
-  return $ AstPushLit $ LitInt $ read num
+  return $ AstPushLit (LitInt (read num)) numPos
 
 boolLitP :: Parser Ast
 boolLitP = do
-  bool <-
-    asum
-      [ keywordP "true" $ AstPushLit $ LitBool True
-      , keywordP "false" $ AstPushLit $ LitBool False
-      ]
-  pure bool
+  asum
+    [ keywordP "true" $ AstPushLit (LitBool True)
+    , keywordP "false" $ AstPushLit (LitBool False)
+    ]
 
-keywordP :: Show ast => Text -> ast -> Parser ast
+keywordP :: Show ast => Text -> (SourcePos -> ast) -> Parser ast
 keywordP keyword ast = do
+  pos <- getSourcePos
   void $ string keyword
   whiteSpaceEndP
-  pure ast
+  pure $ ast pos

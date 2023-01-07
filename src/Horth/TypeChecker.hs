@@ -9,6 +9,7 @@ import Data.List.NonEmpty (NonEmpty ((:|)), nonEmpty)
 import Data.String (fromString)
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Text.Megaparsec.Pos (SourcePos, sourcePosPretty)
 
 import Horth.Types
 
@@ -90,22 +91,31 @@ typeCheck ast@(a : as) =
     popTypes ::
       forall (n :: Peano).
       Vec n HType ->
+      SourcePos ->
       TypeCheckMachine (Vec n HType)
-    popTypes t = do
+    popTypes t pos = do
       op :| _ <- ask
       let expectedLen = vecLength t
       stackLst <- gets ((take expectedLen) . typeCheckStack)
+      let prettyOp = \case
+            AstIntr intr _ -> prettyIntrinsic intr
+            AstIf _ _ -> "if"
+            _ -> error "It shouldn't be here"
       let err =
             throwError $
               Text.pack $
                 mconcat
-                  [ "Stack top mismatch, expected: "
+                  [ sourcePosPretty pos
+                  , ": ERROR: "
+                  , "Stack top mismatch when calling '"
+                  , Text.unpack $ prettyOp op
+                  , "'\n"
+                  , "    Expected:\n"
+                  , "        "
                   , show $ vecToList t
-                  , ", got: "
+                  , "\n    Got:\n"
+                  , "        "
                   , show stackLst
-                  , ".\n"
-                  , "While checking: "
-                  , show op
                   ]
       when (length stackLst /= expectedLen) err
       -- 'vecFromList' is safe here because we checked the length of the list
@@ -134,16 +144,19 @@ typeCheck ast@(a : as) =
               }
         )
 
-    getProcType :: Text -> TypeCheckMachine ([HType], [HType])
-    getProcType name = do
+    getProcType :: Text -> SourcePos -> TypeCheckMachine ([HType], [HType])
+    getProcType name pos = do
       labels <- gets typeCheckLabels
       case lookup name labels of
         Nothing ->
           throwError $
             Text.pack $
               mconcat
-                [ "Unknown procedure: "
+                [ sourcePosPretty pos
+                , ": ERROR: "
+                , "Unknown procedure call: '"
                 , show name
+                , "'"
                 ]
         Just tys -> pure tys
 
@@ -152,70 +165,70 @@ typeCheck ast@(a : as) =
       currAst :| restAst <- ask
 
       case currAst of
-        AstPushLit (LitInt _) -> do
+        AstPushLit (LitInt _) _ -> do
           pushType HInt
           continueLinear restAst
-        AstPushLit (LitBool _) -> do
+        AstPushLit (LitBool _) _ -> do
           pushType HBool
           continueLinear restAst
-        AstPushLit (LitAddr _) -> do
+        AstPushLit (LitAddr _) _ -> do
           pushType HAddr
           continueLinear restAst
-        AstIntr Add -> do
-          void $ popTypes (HInt :> HInt :> Nil)
+        AstIntr Add pos -> do
+          void $ popTypes (HInt :> HInt :> Nil) pos
           pushType HInt
           continueLinear restAst
-        AstIntr Sub -> do
-          void $ popTypes (HInt :> HInt :> Nil)
+        AstIntr Sub pos -> do 
+          void $ popTypes (HInt :> HInt :> Nil) pos
           pushType HInt
           continueLinear restAst
-        AstIntr Mul -> do
-          void $ popTypes (HInt :> HInt :> Nil)
+        AstIntr Mul pos -> do
+          void $ popTypes (HInt :> HInt :> Nil) pos
           pushType HInt
           continueLinear restAst
-        AstIntr Div -> do
-          void $ popTypes (HInt :> HInt :> Nil)
+        AstIntr Div pos -> do
+          void $ popTypes (HInt :> HInt :> Nil) pos
           pushType HInt
           continueLinear restAst
-        AstIntr EqI -> do
-          void $ popTypes (HInt :> HInt :> Nil)
+        AstIntr EqI pos -> do
+          void $ popTypes (HInt :> HInt :> Nil) pos
           pushType HBool
           continueLinear restAst
-        AstIntr Not -> do
-          void $ popTypes (HBool :> Nil)
+        AstIntr Not pos -> do
+          void $ popTypes (HBool :> Nil) pos
           pushType HBool
           continueLinear restAst
-        AstIntr Swap -> do
+        AstIntr Swap pos -> do
           a <- generateTyVar
           b <- generateTyVar
-          (a' :> b' :> Nil) <- popTypes (a :> b :> Nil)
+          (a' :> b' :> Nil) <- popTypes (a :> b :> Nil) pos
           pushType a'
           pushType b'
           continueLinear restAst
-        AstIntr Dup -> do
+        AstIntr Dup pos -> do
           a <- generateTyVar
-          (a' :> Nil) <- popTypes (a :> Nil)
+          (a' :> Nil) <- popTypes (a :> Nil) pos
           pushType a'
           pushType a'
           continueLinear restAst
-        AstIntr Pop -> do
+        AstIntr Pop pos -> do
           a <- generateTyVar
-          void $ popTypes (a :> Nil)
+          void $ popTypes (a :> Nil) pos
           continueLinear restAst
-        AstIntr Over -> do
+        AstIntr Over pos -> do
           a <- generateTyVar
           b <- generateTyVar
-          (a' :> b' :> Nil) <- popTypes (a :> b :> Nil)
+          (a' :> b' :> Nil) <- popTypes (a :> b :> Nil) pos
           pushType b'
           pushType a'
           pushType b'
           continueLinear restAst
-        AstIntr Jmp -> do
-          throwError "'jmp' shouldn't be in the AST"
-        AstIntr Jet -> do
-          throwError "'jet' shouldn't be in the AST"
-        AstIf ifAst -> do
-          void $ popTypes (HBool :> Nil)
+        AstIntr Jmp _ -> do
+          error "'jmp' shouldn't be in the AST"
+        AstIntr Jet _ -> do
+          error "'jet' shouldn't be in the AST"
+        AstIf ifAst pos -> do
+          void $ popTypes (HBool :> Nil) pos
           case nonEmpty ifAst of
             Nothing -> pure ()
             Just ifAst' -> do
@@ -227,14 +240,20 @@ typeCheck ast@(a : as) =
                 throwError $
                   Text.pack $
                     mconcat
-                      [ "'if' branch cannot change stack types. pre: "
+                      [ sourcePosPretty pos
+                      , ": ERROR: "
+                      , "'if' cannot change the type stack.\n"
+                      , "    Before 'if' branch:\n"
+                      , "        "
                       , show preIfStack
-                      , ", post: "
+                      , "\n"
+                      , "    After if branch:\n"
+                      , "        "
                       , show postIfStack
                       ]
               modify (\s -> s {typeCheckLabels = labels})
           continueLinear restAst
-        AstProc procName inStack outStack procAst -> do
+        AstProc procName inStack outStack procAst pos -> do
           saveProcType procName inStack outStack
           preProcStack <- gets typeCheckStack
 
@@ -251,26 +270,33 @@ typeCheck ast@(a : as) =
             throwError $
               Text.pack $
                 mconcat
-                  [ "proc '"
+                  [ sourcePosPretty pos
+                  , ": ERROR: proc '"
                   , Text.unpack procName
-                  , "' type missmatch. Expected: "
+                  , "' type missmatch.\n"
+                  , "    Procedure declared output type to be:\n"
+                  , "        "
                   , show outStack
-                  , ", got: "
+                  , "\n"
+                  , "    But is:\n"
+                  , "        "
                   , show postProcStack
                   ]
 
           modify (\s -> s {typeCheckStack = preProcStack})
           continueLinear restAst
-        AstName name -> do
-          (inType, outType) <- getProcType name
+        AstName name pos -> do
+          (inType, outType) <- getProcType name pos
           stackTop <- gets ((take (length inType)) . typeCheckStack)
           unless (stackTop == inType) $
             throwError $
               Text.pack $
                 mconcat
-                  [ "proc '"
+                  [ sourcePosPretty pos
+                  , ": ERROR: proc '"
                   , Text.unpack name
-                  , "' call type missmatch. Expected: "
+                  , "' call type missmatch.\n"
+                  , "    To call the procedure, stack top is expected: "
                   , show inType
                   , ", got: "
                   , show stackTop
@@ -278,3 +304,4 @@ typeCheck ast@(a : as) =
           modify (\s -> s {typeCheckStack = drop (length inType) (typeCheckStack s)})
           modify (\s -> s {typeCheckStack = outType ++ typeCheckStack s})
           continueLinear restAst
+
