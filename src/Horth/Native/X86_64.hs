@@ -105,17 +105,13 @@ emitInstr _ op@(OpCodeIntr Add) =
   joinLines
     [ ";; " <> Text.pack (show op)
     , "pop r13"
-    , "pop r12"
-    , "add r12, r13"
-    , "push r12"
+    , "add [rsp], r13"
     ]
 emitInstr _ op@(OpCodeIntr Sub) =
   joinLines
     [ ";; " <> Text.pack (show op)
     , "pop r13"
-    , "pop r12"
-    , "sub r12, r13"
-    , "push r12"
+    , "sub [rsp], r13"
     ]
 emitInstr _ op@(OpCodeIntr Div) =
   joinLines
@@ -145,26 +141,20 @@ emitInstr _ op@(OpCodeIntr Not) =
 emitInstr _ op@(OpCodeIntr Dup) =
   joinLines
     [ ";; " <> Text.pack (show op)
-    , "pop r13"
-    , "push r13"
-    , "push r13"
+    , "push qword [rsp]"
     ]
 emitInstr _ op@(OpCodeIntr Swap) =
   joinLines
     [ ";; " <> Text.pack (show op)
-    , "pop r13"
-    , "pop r12"
-    , "push r13"
-    , "push r12"
+    , "mov r13, qword [rsp]"
+    , "mov r12, qword [rsp+8]"
+    , "mov [rsp], r12"
+    , "mov [rsp+8], r13"
     ]
 emitInstr _ op@(OpCodeIntr Over) =
   joinLines
     [ ";; " <> Text.pack (show op)
-    , "pop r13"
-    , "pop r12"
-    , "push r12"
-    , "push r13"
-    , "push r12"
+    , "push qword [rsp+8]"
     ]
 emitInstr _ op@(OpCodeIntr Pop) =
   joinLines
@@ -174,18 +164,17 @@ emitInstr _ op@(OpCodeIntr Pop) =
 emitInstr (Addr addr) op@(OpCodeIntr EqI) =
   joinLines
     [ ";; " <> Text.pack (show op)
-    , "pop rdi"
-    , "pop rsi"
-    , "cmp rdi, rsi"
+    , "pop r13"
+    , "pop r12"
+    , "cmp r13, r12"
     , "je eq_" <> Text.pack (show addr)
     , "jmp neq_" <> Text.pack (show addr)
     , "eq_" <> Text.pack (show addr) <> ":"
-    , "mov rax, 1"
+    , "push 1"
     , "jmp end_" <> Text.pack (show addr)
     , "neq_" <> Text.pack (show addr) <> ":"
-    , "mov rax, 0"
+    , "push 0"
     , "end_" <> Text.pack (show addr) <> ":"
-    , "push rax"
     ]
 emitInstr _ op@(OpCodeIntr (Jmp (Addr addr))) =
   joinLines
@@ -201,11 +190,9 @@ emitInstr _ op@(OpCodeIntr PrintI) =
 emitInstr (Addr addr) op@(OpCodeIntr PrintB) =
   joinLines
     [ ";; " <> Text.pack (show op)
-    , "mov rax, 1"
-    , "mov rdi, 1"
-    , "pop r10"
-    , "mov r9, 1"
-    , "cmp r9, r10"
+    , "pop r13"
+    , "mov r12, 1"
+    , "cmp r12, r13"
     , "je true_" <> Text.pack (show addr)
     , "jmp false_" <> Text.pack (show addr)
     , "true_" <> Text.pack (show addr) <> ":"
@@ -216,14 +203,16 @@ emitInstr (Addr addr) op@(OpCodeIntr PrintB) =
     , "mov rsi, False"
     , "mov rdx, 6"
     , "end_" <> Text.pack (show addr) <> ":"
+    , "mov rax, 1"
+    , "mov rdi, 1"
     , "syscall"
     ]
 emitInstr (Addr addr) op@(OpCodeIntr (Jet (Addr jmpAddr))) =
   joinLines
     [ ";; " <> Text.pack (show op)
-    , "pop r10"
-    , "mov r9, 1"
-    , "cmp r9, r10"
+    , "pop r13"
+    , "mov r12, 1"
+    , "cmp r12, r13"
     , "je true_" <> Text.pack (show addr)
     , "jmp end_" <> Text.pack (show addr)
     , "true_" <> Text.pack (show addr) <> ":"
