@@ -1,4 +1,4 @@
-module Horth.Native.X86_64 (compileX86_64) where
+module Horth.Native.Elf64 (compileElf64) where
 
 import Control.Monad.State (MonadState, State, execState, gets, modify)
 import Data.Text (Text)
@@ -19,8 +19,8 @@ data CompilationState = CompilationState
 newtype CompilationM a = CompilationM {runCompilationM :: State CompilationState a}
   deriving newtype (Functor, Applicative, Monad, MonadState CompilationState)
 
-compileX86_64 :: Code -> Text
-compileX86_64 code =
+compileElf64 :: Code -> Text
+compileElf64 code =
   toStrict
     . TextBuilder.toLazyText
     . compilationStateEmited

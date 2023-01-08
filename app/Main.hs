@@ -18,7 +18,7 @@ import Horth.Cli (
  )
 import Horth.Compiler (compile)
 import Horth.Interpreter (interpret)
-import Horth.Native.X86_64 (compileX86_64)
+import Horth.Native.Elf64 (compileElf64)
 import Horth.Parser (parse)
 import Horth.TypeChecker (TypeCheckedAst, typeCheck)
 
@@ -45,7 +45,7 @@ main = do
       ast <- getAst opts.compileOptsInput
       let compileNative =
             case opts.compileOptsFormat of
-              ExeFormatElf64 -> compileX86_64
+              ExeFormatElf64 -> compileElf64
       Text.writeFile opts.compileOptsOutput $ compileNative $ compile ast
     ModeRun opts -> do
       ast <- getAst opts.runOptsInput

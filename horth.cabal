@@ -27,7 +27,7 @@ library
       Horth.Cli
       Horth.Compiler
       Horth.Interpreter
-      Horth.Native.X86_64
+      Horth.Native.Elf64
       Horth.Parser
       Horth.TypeChecker
       Horth.Types
