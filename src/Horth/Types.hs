@@ -2,6 +2,7 @@
 
 module Horth.Types where
 
+import Data.Int (Int64)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Vector (Vector)
@@ -23,7 +24,7 @@ prettyOpCode (OpCodePushToCallStack retAddr callAddr) = "pushCall " <> prettyAdd
 prettyOpCode OpCodePopJmpFromCallStack = "popCall"
 
 data Lit
-  = LitInt Integer
+  = LitInt Int64
   | LitBool Bool
   deriving stock (Show, Eq)
 
