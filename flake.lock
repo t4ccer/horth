@@ -26,11 +26,11 @@
     "all-cabal-json": {
       "flake": false,
       "locked": {
-        "lastModified": 1665552503,
-        "narHash": "sha256-r14RmRSwzv5c+bWKUDaze6pXM7nOsiz1H8nvFHJvufc=",
+        "lastModified": 1673152288,
+        "narHash": "sha256-Zph6AdzGcUayueVfRcF43W9ir9bktrkijt6cbSfrGG0=",
         "owner": "nix-community",
         "repo": "all-cabal-json",
-        "rev": "d7c0434eebffb305071404edcf9d5cd99703878e",
+        "rev": "7a7f792f5f66750811bb6955ef84af83792c2e72",
         "type": "github"
       },
       "original": {
@@ -75,7 +75,9 @@
     "dream2nix": {
       "inputs": {
         "alejandra": "alejandra",
-        "all-cabal-json": "all-cabal-json",
+        "all-cabal-json": [
+          "all-cabal-json"
+        ],
         "crane": "crane",
         "devshell": "devshell",
         "flake-parts": [
@@ -373,6 +375,7 @@
     },
     "root": {
       "inputs": {
+        "all-cabal-json": "all-cabal-json",
         "dream2nix": "dream2nix",
         "flake-parts": "flake-parts",
         "nix-filter": "nix-filter",

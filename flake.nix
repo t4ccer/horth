@@ -17,6 +17,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.pre-commit-hooks.follows = "pre-commit-hooks-nix";
       inputs.flake-parts.follows = "flake-parts";
+      inputs.all-cabal-json.follows = "all-cabal-json";
+    };
+    all-cabal-json = {
+      url = "github:nix-community/all-cabal-json?ref=hackage";
+      flake = false;
     };
     nix-filter.url = "github:numtide/nix-filter";
   };
@@ -91,7 +96,8 @@
               export LC_ALL=C.UTF-8
               export LANG=C.UTF-8
 
-              horth ${file} out.asm | tee interpreted.out
+              horth run --input ${file} | tee interpreted.out
+              horth compile --input ${file} --output out.asm --format elf64
               nasm -f elf64 out.asm
               ld out.o -o out
               ./out | tee compiled.out

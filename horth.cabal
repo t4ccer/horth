@@ -16,7 +16,7 @@ license:        GPL-3-or-later
 license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
-    README.md
+    README.org
 
 source-repository head
   type: git
@@ -24,6 +24,7 @@ source-repository head
 
 library
   exposed-modules:
+      Horth.Cli
       Horth.Compiler
       Horth.Interpreter
       Horth.Native.X86_64
@@ -99,6 +100,7 @@ library
       base >=4.10.0 && <5
     , megaparsec
     , mtl
+    , optparse-applicative
     , text
     , transformers
     , vector
