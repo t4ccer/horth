@@ -307,3 +307,16 @@ typeCheck ast@(a : as) =
           modify (\s -> s {typeCheckStack = drop (length inType) (typeCheckStack s)})
           modify (\s -> s {typeCheckStack = outType ++ typeCheckStack s})
           continueLinear restAst
+        AstHole holeName pos -> do
+          currStack <- gets typeCheckStack
+          throwError $
+            Text.pack $
+              mconcat
+                [ sourcePosPretty pos
+                , ": ERROR: hole '"
+                , Text.unpack holeName
+                , "'\n"
+                , "    Stack has type:\n"
+                , "        "
+                , show currStack
+                ]

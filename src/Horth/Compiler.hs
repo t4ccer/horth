@@ -127,3 +127,4 @@ compile (getTypeCheckedAst -> (allAst : allAsts)) =
           emit OpCodePopJmpFromCallStack
           addrAfterProc <- gets compilationStateNextAddr
           continueLinear restAst
+        AstHole _ _ -> error "Hole in ast. This shouldn't happen after type checking"

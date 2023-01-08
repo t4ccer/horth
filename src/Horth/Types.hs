@@ -90,4 +90,5 @@ data Ast
   | AstName Text SourcePos
   | AstIf [Ast] SourcePos
   | AstProc Text [HType] [HType] [Ast] SourcePos
+  | AstHole Text SourcePos
   deriving stock (Show, Eq)

@@ -48,6 +48,7 @@ horthP =
       , keywordP "over" (AstIntr Over)
       , keywordP "printI" (AstIntr PrintI)
       , keywordP "printB" (AstIntr PrintB)
+      , holeP
       , nameP
       ]
 
@@ -132,3 +133,11 @@ keywordP keyword ast = do
   void $ string keyword
   whiteSpaceEndP
   pure $ ast pos
+
+holeP :: Parser Ast
+holeP = do
+  pos <- getSourcePos
+  void $ string "_"
+  holeName <- ("_" <>) . Text.pack <$> many notSpaceChar
+  whiteSpaceEndP
+  pure $ AstHole holeName pos
