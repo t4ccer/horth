@@ -97,7 +97,6 @@ library:
   dependencies:
     - text
     - vector
-    - fixed-vector
     - megaparsec
     - mtl
     - transformers
