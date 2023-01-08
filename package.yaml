@@ -94,6 +94,7 @@ library:
     - -fprint-explicit-foralls
     - -fprint-explicit-kinds
     - -Wunused-do-bind
+    - -Werror
   dependencies:
     - text
     - vector

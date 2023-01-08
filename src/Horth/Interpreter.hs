@@ -6,6 +6,7 @@ import Control.Monad.Reader (MonadReader, ReaderT, asks, runReaderT)
 import Control.Monad.State (MonadState, StateT, evalStateT, gets, modify)
 import Data.Vector qualified as V
 
+import Horth.Compiler (Code (getCode))
 import Horth.Types
 
 data MachineState = MachineState

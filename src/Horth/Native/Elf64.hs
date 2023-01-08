@@ -7,6 +7,7 @@ import Data.Text.Lazy (toStrict)
 import Data.Text.Lazy.Builder qualified as TextBuilder
 import Data.Vector qualified as Vector
 
+import Horth.Compiler (Code (getCode))
 import Horth.Types
 
 data CompilationState = CompilationState

@@ -5,7 +5,6 @@ module Horth.Types where
 import Data.Int (Int64)
 import Data.Text (Text)
 import Data.Text qualified as Text
-import Data.Vector (Vector)
 import Text.Megaparsec.Pos (SourcePos)
 
 -- * Bare VM
@@ -74,9 +73,6 @@ prettyIntrinsic :: Intrinsic -> Text
 prettyIntrinsic intr = Text.toLower $ Text.pack $ show intr
 
 newtype Stack = Stack {getStack :: [Lit]}
-  deriving stock (Show, Eq)
-
-newtype Code = Code {getCode :: Vector OpCode}
   deriving stock (Show, Eq)
 
 data HType

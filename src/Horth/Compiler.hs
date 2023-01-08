@@ -1,12 +1,13 @@
 {-# LANGUAGE RecursiveDo #-}
 
-module Horth.Compiler (CompileError (..), compile) where
+module Horth.Compiler (CompileError (..), Code (getCode), compile) where
 
 import Control.Monad.Fix (MonadFix)
 import Control.Monad.Reader (MonadReader, Reader, asks, local, runReader)
 import Control.Monad.State (MonadState, StateT, execStateT, gets, modify)
 import Data.List.NonEmpty (NonEmpty ((:|)), nonEmpty)
 import Data.Text (Text)
+import Data.Vector (Vector)
 import Data.Vector qualified as V
 
 import Horth.TypeChecker (TypeCheckedAst (getTypeCheckedAst))
@@ -32,6 +33,9 @@ newtype CompilationM a = CompilationM
   { runCompilationM :: (StateT CompilationState (Reader CompilationEnv)) a
   }
   deriving newtype (Functor, Applicative, Monad, MonadReader CompilationEnv, MonadState CompilationState, MonadFix)
+
+newtype Code = Code {getCode :: Vector OpCode}
+  deriving stock (Show, Eq)
 
 compile :: TypeCheckedAst -> Code
 compile (getTypeCheckedAst -> []) = Code V.empty
