@@ -1,238 +1,193 @@
 module Horth.Native.X86_64 (compileX86_64) where
 
-import Control.Monad.Fix (MonadFix)
-import Control.Monad.Reader (MonadReader, Reader, asks, local, runReader)
-import Control.Monad.State (MonadState, StateT, execStateT, gets, modify)
-import Data.Foldable (fold)
-import Data.List.NonEmpty (NonEmpty ((:|)), nonEmpty)
+import Control.Monad.State (MonadState, State, execState, gets, modify)
 import Data.Text (Text)
 import Data.Text qualified as Text
-import Data.Vector qualified as V
+import Data.Text.Lazy (toStrict)
+import Data.Text.Lazy.Builder qualified as TextBuilder
+import Data.Vector qualified as Vector
 
 import Horth.Types
 
 data CompilationState = CompilationState
-  { compilationStateEmited :: [Text]
+  { compilationStateEmited :: TextBuilder.Builder
+  , compilationStateCode :: [OpCode]
+  , compilationStateIp :: Addr
   }
-  deriving stock (Show, Eq)
+  deriving stock (Show)
 
-data CompilationEnv = CompilationEnv
-  { compilationEnvAst :: NonEmpty OpCode
-  }
-  deriving stock (Show, Eq)
-
-newtype CompilationM a = CompilationM {runCompilationM :: (StateT CompilationState (Reader CompilationEnv)) a}
+newtype CompilationM a = CompilationM {runCompilationM :: State CompilationState a}
+  deriving newtype (Functor, Applicative, Monad, MonadState CompilationState)
 
 compileX86_64 :: Code -> Text
-compileX86_64 (V.toList . getCode -> code) =
-  mconcat
-    [ prologue
-    , fold $ zipWith (\ip op -> "ip_" <> Text.pack (show ip) <> ":\n" <> emitInstr (Addr ip) op) [0 :: Int ..] code
-    , epilogue
-    ]
+compileX86_64 code =
+  toStrict
+    . TextBuilder.toLazyText
+    . compilationStateEmited
+    . flip execState (CompilationState mempty (Vector.toList $ getCode code) (Addr 0))
+    . runCompilationM
+    $ do
+      prologue
+      compileOpCode
+      epilogue
+  where
+    compileOpCode :: CompilationM ()
+    compileOpCode = do
+      opCodes <- gets compilationStateCode
+      (Addr currAddr) <- gets compilationStateIp
+      let mkAddrPostfix txt = txt <> "_" <> Text.pack (show currAddr)
+      case opCodes of
+        [] -> pure ()
+        (opCode : rest) -> do
+          modify $ \s -> s {compilationStateCode = rest}
+          emitComment $ Text.pack $ show opCode
+          emitIpLabel
+          case opCode of
+            OpCodePushLit (LitInt i) -> do
+              emitInstr "push" [Text.pack $ show i]
+            OpCodePushLit (LitBool True) -> do
+              emitInstr "push" ["1"]
+            OpCodePushLit (LitBool False) -> do
+              emitInstr "push" ["0"]
+            OpCodeIntr Add -> do
+              emitInstr "pop" ["r13"]
+              emitInstr "add" ["[rsp]", "r13"]
+            OpCodeIntr Sub -> do
+              emitInstr "pop" ["r13"]
+              emitInstr "sub" ["[rsp]", "r13"]
+            OpCodeIntr Mul -> do
+              emitInstr "pop" ["r13"]
+              emitInstr "pop" ["r12"]
+              emitInstr "imul" ["r12", "r13"]
+              emitInstr "push" ["r12"]
+            OpCodeIntr Div -> do
+              emitInstr "mov" ["rdx", "0"]
+              emitInstr "pop" ["rcx"]
+              emitInstr "pop" ["rax"]
+              emitInstr "idiv" ["rcx"]
+              emitInstr "push" ["rax"]
+            OpCodeIntr Not -> do
+              emitInstr "pop" ["r13"]
+              emitInstr "mov" ["r12", "1"]
+              emitInstr "sub" ["r12", "r13"]
+              emitInstr "push" ["r12"]
+            OpCodeIntr Dup -> do
+              emitInstr "push qword" ["[rsp]"]
+            OpCodeIntr Swap -> do
+              emitInstr "mov" ["r13", "qword [rsp]"]
+              emitInstr "xchg" ["r13", "qword [rsp+8]"]
+              emitInstr "mov" ["[rsp]", "r13"]
+            OpCodeIntr Over -> do
+              emitInstr "push qword" ["[rsp+8]"]
+            OpCodeIntr Pop -> do
+              emitInstr "add" ["rsp", "8"]
+            OpCodeIntr EqI -> do
+              -- TODO: There must be a smarter way
+              emitInstr "pop" ["r13"]
+              emitInstr "pop" ["r12"]
+              emitInstr "cmp" ["r13", "r12"]
+              emitInstr "je" [mkAddrPostfix "eq"]
+              emitInstr "jmp" [mkAddrPostfix "neq"]
+              emitLabel $ mkAddrPostfix "eq"
+              emitInstr "push" ["1"]
+              emitInstr "jmp" [mkAddrPostfix "end"]
+              emitLabel $ mkAddrPostfix "neq"
+              emitInstr "push" ["0"]
+              emitLabel $ mkAddrPostfix "end"
+            OpCodeIntr (Jmp (Addr jmpAddr)) -> do
+              emitInstr "jmp" ["ip_" <> Text.pack (show jmpAddr)]
+            OpCodeIntr (Jet (Addr jmpAddr)) -> do
+              emitInstr "pop" ["r13"]
+              emitInstr "cmp" ["r13", "1"]
+              emitInstr "je" ["ip_" <> Text.pack (show jmpAddr)]
+            OpCodeIntr PrintI -> do
+              emitInstr "pop" ["rdi"]
+              emitInstr "call" ["print_uint"]
+            OpCodeIntr PrintB -> do
+              error "PrintB: not implemented"
+            OpCodePushToCallStack (Addr retAddr) (Addr jmpAddr) -> do
+              emitInstr "add" ["r15", "8"]
+              emitInstr "mov" ["qword [r15]", "ip_" <> Text.pack (show retAddr)]
+              emitInstr "jmp" ["ip_" <> Text.pack (show jmpAddr)]
+            OpCodePopJmpFromCallStack -> do
+              emitInstr "mov" ["r14", "[r15]"]
+              emitInstr "sub" ["r15", "8"]
+              emitInstr "jmp" ["r14"]
+          emitVerbatim ""
+          modify $ \s -> s {compilationStateIp = Addr (currAddr + 1)}
+          compileOpCode
 
-epilogue :: Text
-epilogue =
-  joinLines
-    [ ";; Epilogue"
-    , "mov rax, 60"
-    , "mov rdi, 0"
-    , "syscall"
-    ]
+emitComment :: Text -> CompilationM ()
+emitComment comment = emitVerbatim $ "; " <> comment
 
-prologue :: Text
-prologue =
-  joinLines
-    [ "global _start"
-    , "section .bss"
-    , "horthCallStack resq 1024"
-    , "section .data"
-    , "nl db 0x0a"
-    , "True db \"True\", 0x0a"
-    , "False db \"False\", 0x0a"
-    , "section .text"
-    , "print_uint:"
-    , "mov rax, rdi"
-    , "xor rcx, rcx"
-    , "mov r8, 10"
-    , -- Push digits onto stack
-      ".loop:"
-    , "xor rdx, rdx"
-    , "div r8"
-    , "add dl, 0x30"
-    , "dec rsp"
-    , "mov [rsp], dl"
-    , "inc rcx"
-    , "test rax, rax"
-    , "jnz .loop"
-    , -- Print elements from stack
-      "xor rax, rax"
-    , "mov rsi, rsp"
-    , "mov rdx, rcx"
-    , "push rcx"
-    , "mov rax, 1"
-    , "mov rdi, 1"
-    , "syscall"
-    , "pop rcx"
-    , "add rsp, rcx"
-    , "mov rax, 1"
-    , "mov rdi, 1"
-    , "mov rsi, nl"
-    , "mov rdx, 1"
-    , "syscall"
-    , "ret"
-    , "_start:"
-    , "mov r15, horthCallStack"
-    ]
+emitInstr :: Text -> [Text] -> CompilationM ()
+emitInstr opCode args = emitVerbatim $ "        " <> opCode <> " " <> Text.intercalate ", " args
 
-emitInstr :: Addr -> OpCode -> Text
-emitInstr _ op@(OpCodePushLit (LitInt i)) =
-  joinLines
-    [ ";; " <> Text.pack (show op)
-    , "push " <> Text.pack (show i)
-    ]
-emitInstr _ op@(OpCodePushLit (LitBool True)) =
-  joinLines
-    [ ";; " <> Text.pack (show op)
-    , "push 1"
-    ]
-emitInstr _ op@(OpCodePushLit (LitBool False)) =
-  joinLines
-    [ ";; " <> Text.pack (show op)
-    , "push 0"
-    ]
-emitInstr _ op@(OpCodeIntr Add) =
-  joinLines
-    [ ";; " <> Text.pack (show op)
-    , "pop r13"
-    , "add [rsp], r13"
-    ]
-emitInstr _ op@(OpCodeIntr Sub) =
-  joinLines
-    [ ";; " <> Text.pack (show op)
-    , "pop r13"
-    , "sub [rsp], r13"
-    ]
-emitInstr _ op@(OpCodeIntr Div) =
-  joinLines
-    [ ";; " <> Text.pack (show op)
-    , "mov rdx, 0"
-    , "pop rcx"
-    , "pop rax"
-    , "idiv rcx"
-    , "push rax"
-    ]
-emitInstr _ op@(OpCodeIntr Mul) =
-  joinLines
-    [ ";; " <> Text.pack (show op)
-    , "pop r13"
-    , "pop r12"
-    , "imul r12, r13"
-    , "push r12"
-    ]
-emitInstr _ op@(OpCodeIntr Not) =
-  joinLines
-    [ ";; " <> Text.pack (show op)
-    , "pop r13"
-    , "mov r12, 1"
-    , "sub r12, r13"
-    , "push r12"
-    ]
-emitInstr _ op@(OpCodeIntr Dup) =
-  joinLines
-    [ ";; " <> Text.pack (show op)
-    , "push qword [rsp]"
-    ]
-emitInstr _ op@(OpCodeIntr Swap) =
-  joinLines
-    [ ";; " <> Text.pack (show op)
-    , "mov r13, qword [rsp]"
-    , "mov r12, qword [rsp+8]"
-    , "mov [rsp], r12"
-    , "mov [rsp+8], r13"
-    ]
-emitInstr _ op@(OpCodeIntr Over) =
-  joinLines
-    [ ";; " <> Text.pack (show op)
-    , "push qword [rsp+8]"
-    ]
-emitInstr _ op@(OpCodeIntr Pop) =
-  joinLines
-    [ ";; " <> Text.pack (show op)
-    , "pop r13"
-    ]
-emitInstr (Addr addr) op@(OpCodeIntr EqI) =
-  joinLines
-    [ ";; " <> Text.pack (show op)
-    , "pop r13"
-    , "pop r12"
-    , "cmp r13, r12"
-    , "je eq_" <> Text.pack (show addr)
-    , "jmp neq_" <> Text.pack (show addr)
-    , "eq_" <> Text.pack (show addr) <> ":"
-    , "push 1"
-    , "jmp end_" <> Text.pack (show addr)
-    , "neq_" <> Text.pack (show addr) <> ":"
-    , "push 0"
-    , "end_" <> Text.pack (show addr) <> ":"
-    ]
-emitInstr _ op@(OpCodeIntr (Jmp (Addr addr))) =
-  joinLines
-    [ ";; " <> Text.pack (show op)
-    , "jmp ip_" <> Text.pack (show addr)
-    ]
-emitInstr _ op@(OpCodeIntr PrintI) =
-  joinLines
-    [ ";; " <> Text.pack (show op)
-    , "pop rdi"
-    , "call print_uint"
-    ]
-emitInstr (Addr addr) op@(OpCodeIntr PrintB) =
-  joinLines
-    [ ";; " <> Text.pack (show op)
-    , "pop r13"
-    , "mov r12, 1"
-    , "cmp r12, r13"
-    , "je true_" <> Text.pack (show addr)
-    , "jmp false_" <> Text.pack (show addr)
-    , "true_" <> Text.pack (show addr) <> ":"
-    , "mov rsi, True"
-    , "mov rdx, 5"
-    , "jmp end_" <> Text.pack (show addr)
-    , "false_" <> Text.pack (show addr) <> ":"
-    , "mov rsi, False"
-    , "mov rdx, 6"
-    , "end_" <> Text.pack (show addr) <> ":"
-    , "mov rax, 1"
-    , "mov rdi, 1"
-    , "syscall"
-    ]
-emitInstr (Addr addr) op@(OpCodeIntr (Jet (Addr jmpAddr))) =
-  joinLines
-    [ ";; " <> Text.pack (show op)
-    , "pop r13"
-    , "mov r12, 1"
-    , "cmp r12, r13"
-    , "je true_" <> Text.pack (show addr)
-    , "jmp end_" <> Text.pack (show addr)
-    , "true_" <> Text.pack (show addr) <> ":"
-    , "jmp ip_" <> Text.pack (show jmpAddr)
-    , "end_" <> Text.pack (show addr) <> ":"
-    ]
-emitInstr _ op@(OpCodePushToCallStack (Addr currAddr) (Addr jmpAddr)) =
-  joinLines
-    [ ";; " <> Text.pack (show op)
-    , "add r15, 8"
-    , "mov qword [r15], ip_" <> Text.pack (show currAddr)
-    , "jmp ip_" <> Text.pack (show jmpAddr)
-    ]
-emitInstr _ op@(OpCodePopJmpFromCallStack) =
-  joinLines
-    [ ";; " <> Text.pack (show op)
-    , "mov r14, [r15]"
-    , "sub r15, 8"
-    , "jmp r14"
-    ]
+emitIpLabel :: CompilationM ()
+emitIpLabel = do
+  (Addr currAddr) <- gets compilationStateIp
+  emitLabel $ Text.pack $ "ip_" <> show currAddr
 
-joinLines :: [Text] -> Text
-joinLines = Text.intercalate "\n" . (<> ["\n"])
+emitLabel :: Text -> CompilationM ()
+emitLabel label = emitVerbatim (label <> ":")
+
+emitSection :: Text -> CompilationM ()
+emitSection section = emitVerbatim ("section " <> section)
+
+emitGlobal :: Text -> CompilationM ()
+emitGlobal global = emitVerbatim ("global " <> global)
+
+emitVerbatim :: Text -> CompilationM ()
+emitVerbatim text = do
+  modify $ \s -> s {compilationStateEmited = compilationStateEmited s <> TextBuilder.fromText text <> "\n"}
+
+epilogue :: CompilationM ()
+epilogue = do
+  emitComment "Epilogue"
+  emitIpLabel
+  emitInstr "mov" ["rax", "60"]
+  emitInstr "mov" ["rdi", "0"]
+  emitInstr "syscall" []
+
+prologue :: CompilationM ()
+prologue = do
+  emitGlobal "_start"
+  emitSection ".bss"
+  emitVerbatim "        horthCallStack resq 1024"
+  emitSection ".data"
+  emitVerbatim "        nl db 0x0a"
+  emitVerbatim "        True db \"True\", 0x0a"
+  emitVerbatim "        False db \"False\", 0x0a"
+  emitSection ".text"
+  emitLabel "print_uint"
+  emitInstr "mov" ["rax", "rdi"]
+  emitInstr "xor" ["rcx", "rcx"]
+  emitInstr "mov" ["r8", "10"]
+  -- Push digits onto stack
+  emitLabel ".loop"
+  emitInstr "xor" ["rdx", "rdx"]
+  emitInstr "div" ["r8"]
+  emitInstr "add" ["dl", "0x30"]
+  emitInstr "dec" ["rsp"]
+  emitInstr "mov" ["[rsp]", "dl"]
+  emitInstr "inc" ["rcx"]
+  emitInstr "test" ["rax", "rax"]
+  emitInstr "jnz" [".loop"]
+  -- Print elements from stack
+  emitInstr "xor" ["rax", "rax"]
+  emitInstr "mov" ["rsi", "rsp"]
+  emitInstr "mov" ["rdx", "rcx"]
+  emitInstr "push" ["rcx"]
+  emitInstr "mov" ["rax", "1"]
+  emitInstr "mov" ["rdi", "1"]
+  emitInstr "syscall" []
+  emitInstr "pop" ["rcx"]
+  emitInstr "add" ["rsp", "rcx"]
+  emitInstr "mov" ["rax", "1"]
+  emitInstr "mov" ["rdi", "1"]
+  emitInstr "mov" ["rsi", "nl"]
+  emitInstr "mov" ["rdx", "1"]
+  emitInstr "syscall" []
+  emitInstr "ret" []
+  emitLabel "_start"
+  emitInstr "mov" ["r15", "horthCallStack"]
