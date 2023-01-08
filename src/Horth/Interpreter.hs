@@ -89,11 +89,9 @@ interpret = runReaderT (evalStateT (runMachine interpret') (MachineState (Stack 
           LitBool l <- pop
           push $ LitBool $ not l
           incrementPC
-        OpCodeIntr Jmp -> do
-          LitAddr addr <- pop
+        OpCodeIntr (Jmp addr) -> do
           modify (\s -> s {pc = addr})
-        OpCodeIntr Jet -> do
-          LitAddr addr <- pop
+        OpCodeIntr (Jet addr) -> do
           LitBool cond <- pop
           if cond then modify (\s -> s {pc = addr}) else incrementPC
         OpCodeIntr Dup -> do
@@ -121,9 +119,13 @@ interpret = runReaderT (evalStateT (runMachine interpret') (MachineState (Stack 
           LitInt a <- pop
           liftIO $ print a
           incrementPC
-        OpCodePushToCallStack addr -> do
-          modify (\s -> s {callStack = addr : callStack s})
+        OpCodeIntr PrintB -> do
+          LitBool a <- pop
+          liftIO $ print a
           incrementPC
+        OpCodePushToCallStack retAddr callAddr -> do
+          modify (\s -> s {callStack = retAddr : callStack s})
+          modify (\s -> s {pc = callAddr})
         OpCodePopJmpFromCallStack -> do
           addr : rest <- gets callStack
           modify (\s -> s {callStack = rest})

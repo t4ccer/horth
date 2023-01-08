@@ -47,6 +47,7 @@ horthP =
       , keywordP "pop" (AstIntr Pop)
       , keywordP "over" (AstIntr Over)
       , keywordP "printI" (AstIntr PrintI)
+      , keywordP "printB" (AstIntr PrintB)
       , nameP
       ]
 

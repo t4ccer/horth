@@ -96,8 +96,7 @@ compile (getTypeCheckedAst -> (allAst : allAsts)) =
           continueLinear restAst
         AstIf ifAst _ -> mdo
           emit $ OpCodeIntr Not
-          emit $ OpCodePushLit (LitAddr addrAfterIfBranch)
-          emit $ OpCodeIntr Jet
+          emit $ OpCodeIntr (Jet addrAfterIfBranch)
           case nonEmpty ifAst of
             Nothing -> pure ()
             Just ifAst' -> do
@@ -107,15 +106,12 @@ compile (getTypeCheckedAst -> (allAst : allAsts)) =
           addrAfterIfBranch <- gets compilationStateNextAddr
           continueLinear restAst
         AstName name _ -> mdo
-          emit $ OpCodePushToCallStack callStackRetAddr
           addr <- getProcAddr name
-          emit $ OpCodePushLit (LitAddr addr)
-          emit $ OpCodeIntr Jmp
+          emit $ OpCodePushToCallStack callStackRetAddr addr
           callStackRetAddr <- gets compilationStateNextAddr
           continueLinear restAst
         AstProc name _inType _outType procAst _ -> mdo
-          emit $ OpCodePushLit (LitAddr addrAfterProc)
-          emit $ OpCodeIntr Jmp
+          emit $ OpCodeIntr (Jmp addrAfterProc)
           procStartAddr <- gets compilationStateNextAddr
           saveProcAddr name procStartAddr
           case nonEmpty procAst of

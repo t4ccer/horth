@@ -12,27 +12,25 @@ import Text.Megaparsec.Pos (SourcePos)
 data OpCode
   = OpCodePushLit Lit
   | OpCodeIntr Intrinsic
-  | OpCodePushToCallStack Addr
+  | OpCodePushToCallStack Addr Addr
   | OpCodePopJmpFromCallStack
   deriving stock (Eq, Show)
 
 prettyOpCode :: OpCode -> Text
 prettyOpCode (OpCodePushLit lit) = "push " <> prettyLit lit
 prettyOpCode (OpCodeIntr intr) = prettyIntrinsic intr
-prettyOpCode (OpCodePushToCallStack addr) = "pushCall " <> prettyAddr addr
+prettyOpCode (OpCodePushToCallStack retAddr callAddr) = "pushCall " <> prettyAddr retAddr <> " " <> prettyAddr callAddr
 prettyOpCode OpCodePopJmpFromCallStack = "popCall"
 
 data Lit
   = LitInt Integer
   | LitBool Bool
-  | LitAddr Addr
   deriving stock (Show, Eq)
 
 prettyLit :: Lit -> Text
 prettyLit (LitInt i) = Text.pack $ show i
 prettyLit (LitBool True) = "true"
 prettyLit (LitBool False) = "false"
-prettyLit (LitAddr addr) = prettyAddr addr
 
 newtype Addr = Addr {getAddr :: Int}
   deriving stock (Show, Eq)
@@ -55,9 +53,9 @@ data Intrinsic
   | -- | Negate the top element of the stack
     Not
   | -- | Jump to the address on the top of the stack
-    Jmp
+    Jmp Addr
   | -- | (addr : cond : _) -> if cond then jump to addr else continue
-    Jet
+    Jet Addr
   | -- | Duplicate the top element of the stack
     Dup
   | -- | Swap the top two elements of the stack
@@ -68,6 +66,7 @@ data Intrinsic
     Over
   | -- | Print the top element of the stack
     PrintI
+  | PrintB
   deriving stock (Show, Eq)
 
 prettyIntrinsic :: Intrinsic -> Text

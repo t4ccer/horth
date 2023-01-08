@@ -26,6 +26,7 @@ library
   exposed-modules:
       Horth.Compiler
       Horth.Interpreter
+      Horth.Native.X86_64
       Horth.Parser
       Horth.TypeChecker
       Horth.Types
