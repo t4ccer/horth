@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-unused-do-bind #-}
+
 module Main (main) where
 
 import Data.Text.IO qualified as Text
@@ -27,5 +29,5 @@ main = do
     Right res -> pure res
 
   let opCode = compile ast
-  _ <- interpret opCode
+  interpret opCode
   Text.writeFile outFp (compileX86_64 opCode)
