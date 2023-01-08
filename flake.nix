@@ -2,23 +2,35 @@
   description = "horth";
 
   inputs = {
-    cabal-plan-nix.url = "github:t4ccer/cabal-plan-nix";
-    nixpkgs.follows = "cabal-plan-nix/nixpkgs";
-    flake-parts.follows = "cabal-plan-nix/flake-parts";
-    pre-commit-hooks-nix.follows = "cabal-plan-nix/pre-commit-hooks-nix";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-parts = {
+      url = "github:hercules-ci/flake-parts";
+      inputs.nixpkgs-lib.follows = "nixpkgs";
+    };
+    pre-commit-hooks-nix = {
+      url = "github:cachix/pre-commit-hooks.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.nixpkgs-stable.follows = "nixpkgs";
+    };
+    dream2nix = {
+      url = "github:nix-community/dream2nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.pre-commit-hooks.follows = "pre-commit-hooks-nix";
+      inputs.flake-parts.follows = "flake-parts";
+    };
+    nix-filter.url = "github:numtide/nix-filter";
   };
 
-  outputs = inputs @ {
-    self,
-    nixpkgs,
-    ...
-  }:
-    inputs.flake-parts.lib.mkFlake {inherit inputs;} {
+  outputs = inputs @ {flake-parts, ...}:
+    flake-parts.lib.mkFlake {inherit inputs;} {
       imports = [
         inputs.pre-commit-hooks-nix.flakeModule
-        inputs.cabal-plan-nix.flakeModule
+        inputs.dream2nix.flakeModuleBeta
       ];
-      systems = nixpkgs.lib.systems.flakeExposed;
+      systems = inputs.nixpkgs.lib.systems.flakeExposed;
+      dream2nix = {
+        config.projectRoot = ./.;
+      };
       perSystem = {
         config,
         self',
@@ -30,16 +42,65 @@
         pre-commit.settings = {
           hooks = {
             alejandra.enable = true;
+            fourmolu.enable = true;
+          };
+          tools = {
+            fourmolu = pkgs.lib.mkForce (pkgs.writeShellScriptBin "fourmolu" ''
+              ${pkgs.haskell.packages.ghc925.fourmolu_0_9_0_0}/bin/fourmolu -o -XQuasiQuotes -o -XTemplateHaskell -o -XTypeApplications -o -XImportQualifiedPost -o -XPatternSynonyms -o -XOverloadedRecordDot "$@"
+            '');
           };
         };
 
-        cabalPackages = {
-          horth = {
-            inherit pkgs;
-            src = ./.;
-            ghc = pkgs.haskell.compiler.ghc943;
-            id = "horth-0.1.0.0-inplace-horth";
+        dream2nix.inputs.horth = {
+          pname = "horth";
+          source = (import inputs.nix-filter) {
+            root = ./.;
+            include = [
+              "src"
+              "app"
+              "stack.yaml"
+              "stack.yaml.lock"
+              "horth.cabal"
+              "package.yaml"
+              "LICENSE"
+            ];
           };
+          projects.horth = {
+            name = "horth";
+            subsystem = "haskell";
+            translator = "stack-lock";
+            subsystemInfo.compiler = {
+              name = "ghc";
+              version = "9.4.3";
+            };
+          };
+        };
+
+        checks = let
+          # Test if interpreted output is the same as compiled output
+          testHorthFile = name: file:
+            pkgs.runCommand name {
+              nativeBuildInputs = [
+                pkgs.nasm
+                pkgs.binutils
+                pkgs.coreutils
+                self'.packages.horth
+              ];
+            } ''
+              export LC_CTYPE=C.UTF-8
+              export LC_ALL=C.UTF-8
+              export LANG=C.UTF-8
+
+              horth ${file} out.asm | tee interpreted.out
+              nasm -f elf64 out.asm
+              ld out.o -o out
+              ./out | tee compiled.out
+              diff interpreted.out compiled.out && echo "OK"
+
+              touch $out
+            '';
+        in {
+          fac = testHorthFile "fac" ./examples/fac.horth;
         };
 
         devShells.default = let
@@ -48,6 +109,7 @@
           '';
         in
           pkgs.mkShell {
+            shellHook = config.pre-commit.installationScript;
             nativeBuildInputs = [
               # MUST match stack snapshot
               pkgs.haskell.compiler.ghc943
@@ -58,10 +120,12 @@
               pkgs.zlib
               pkgs.yamlfix
               pkgs.alejandra
+              pkgs.nasm
+              pkgs.binutils
+              pkgs.gdb
             ];
           };
         formatter = pkgs.alejandra;
-        apps.plan2nix = inputs.cabal-plan-nix.apps.${system}.plan2nix;
       };
     };
 }
