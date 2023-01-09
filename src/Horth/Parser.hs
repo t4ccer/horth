@@ -36,6 +36,7 @@ horthP =
       , ifP
       , numLitP
       , boolLitP
+      , strPtrLitP
       , keywordP "add" (AstIntr Add)
       , keywordP "sub" (AstIntr Sub)
       , keywordP "mul" (AstIntr Mul)
@@ -48,6 +49,8 @@ horthP =
       , keywordP "over" (AstIntr Over)
       , keywordP "printI" (AstIntr PrintI)
       , keywordP "printB" (AstIntr PrintB)
+      , keywordP "printS" (AstIntr PrintS)
+      , keywordP "addPtr" (AstIntr AddPtr)
       , holeP
       , nameP
       ]
@@ -126,6 +129,15 @@ boolLitP = do
     [ keywordP "true" $ AstPushLit (LitBool True)
     , keywordP "false" $ AstPushLit (LitBool False)
     ]
+
+strPtrLitP :: Parser Ast
+strPtrLitP = do
+  strPos <- getSourcePos
+  void $ char '"'
+  str <- many (satisfy (/= '"') <?> "not double quote")
+  void $ char '"'
+  whiteSpaceEndP
+  return $ AstPushLit (LitStrPtr str 0) strPos
 
 keywordP :: Show ast => Text -> (SourcePos -> ast) -> Parser ast
 keywordP keyword ast = do

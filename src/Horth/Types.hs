@@ -25,12 +25,14 @@ prettyOpCode OpCodePopJmpFromCallStack = "popCall"
 data Lit
   = LitInt Int64
   | LitBool Bool
+  | LitStrPtr String Int64 -- TODO: ByteString
   deriving stock (Show, Eq)
 
 prettyLit :: Lit -> Text
 prettyLit (LitInt i) = Text.pack $ show i
 prettyLit (LitBool True) = "true"
 prettyLit (LitBool False) = "false"
+prettyLit (LitStrPtr str offset) = Text.pack $ show str <> "@" <> show offset
 
 newtype Addr = Addr {getAddr :: Int}
   deriving stock (Show, Eq)
@@ -67,6 +69,8 @@ data Intrinsic
   | -- | Print the top element of the stack
     PrintI
   | PrintB
+  | PrintS
+  | AddPtr
   deriving stock (Show, Eq)
 
 prettyIntrinsic :: Intrinsic -> Text
@@ -79,6 +83,7 @@ data HType
   = HInt
   | HBool
   | HAddr
+  | HStrPtr
   | HTypeVar Integer
   deriving stock (Show, Eq)
 

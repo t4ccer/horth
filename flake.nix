@@ -96,16 +96,25 @@
               export LC_ALL=C.UTF-8
               export LANG=C.UTF-8
 
+              echo "Running interpreter on ${file}..."
               horth run --input ${file} | tee interpreted.out
+              echo ""
+
+              echo "Compiling ${file}..."
               horth compile --input ${file} --output out.asm --format elf64
               nasm -f elf64 out.asm
               ld out.o -o out
+
+              echo "Running compiled output..."
               ./out | tee compiled.out
-              diff interpreted.out compiled.out && echo "OK"
+              echo ""
+              (diff interpreted.out compiled.out) || (echo "FAIL" && exit 1)
+              echo "PASS"
 
               touch $out
             '';
         in {
+          hello = testHorthFile "hello" ./examples/hello.horth;
           fac = testHorthFile "fac" ./examples/fac.horth;
         };
 

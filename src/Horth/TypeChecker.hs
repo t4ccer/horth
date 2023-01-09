@@ -171,6 +171,9 @@ typeCheck ast@(a : as) =
         AstPushLit (LitBool _) _ -> do
           pushType HBool
           continueLinear restAst
+        AstPushLit (LitStrPtr _ _) _ -> do
+          pushType HStrPtr
+          continueLinear restAst
         AstIntr Add pos -> do
           void $ popTypes (HInt :> HInt :> Nil) pos
           pushType HInt
@@ -225,6 +228,13 @@ typeCheck ast@(a : as) =
           continueLinear restAst
         AstIntr PrintB pos -> do
           void $ popTypes (HBool :> Nil) pos
+          continueLinear restAst
+        AstIntr PrintS pos -> do
+          void $ popTypes (HInt :> HStrPtr :> Nil) pos
+          continueLinear restAst
+        AstIntr AddPtr pos -> do
+          void $ popTypes (HInt :> HStrPtr :> Nil) pos
+          pushType HStrPtr
           continueLinear restAst
         AstIntr (Jmp _) _ -> do
           error "'jmp' shouldn't be in the AST"

@@ -124,6 +124,16 @@ interpret = runReaderT (evalStateT (runMachine interpret') (MachineState (Stack 
           LitBool a <- pop
           liftIO $ print a
           incrementPC
+        OpCodeIntr PrintS -> do
+          LitInt len <- pop
+          LitStrPtr str offset <- pop
+          liftIO $ putStr $ take (fromIntegral len) $ drop (fromIntegral offset) str
+          incrementPC
+        OpCodeIntr AddPtr -> do
+          LitInt a <- pop
+          LitStrPtr str offset <- pop
+          push $ LitStrPtr str (offset + a)
+          incrementPC
         OpCodePushToCallStack retAddr callAddr -> do
           modify (\s -> s {callStack = retAddr : callStack s})
           modify (\s -> s {pc = callAddr})

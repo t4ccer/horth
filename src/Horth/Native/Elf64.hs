@@ -1,6 +1,7 @@
 module Horth.Native.Elf64 (compileElf64) where
 
 import Control.Monad.State (MonadState, State, execState, gets, modify)
+import Data.Maybe (mapMaybe)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Lazy (toStrict)
@@ -50,6 +51,8 @@ compileElf64 code =
               emitInstr "push" ["1"]
             OpCodePushLit (LitBool False) -> do
               emitInstr "push" ["0"]
+            OpCodePushLit (LitStrPtr _ _) -> do
+              emitInstr "push" ["str_" <> Text.pack (show currAddr)]
             OpCodeIntr Add -> do
               emitInstr "pop" ["r13"]
               emitInstr "add" ["[rsp]", "r13"]
@@ -105,7 +108,19 @@ compileElf64 code =
               emitInstr "pop" ["rdi"]
               emitInstr "call" ["print_uint"]
             OpCodeIntr PrintB -> do
+              -- TODO
               error "PrintB: not implemented"
+            OpCodeIntr PrintS -> do
+              emitInstr "pop " ["rdx"]
+              emitInstr "pop " ["r13"]
+              emitInstr "mov" ["rax", "1"]
+              emitInstr "mov" ["rdi", "1"]
+              emitInstr "mov" ["rsi", "r13"]
+              emitInstr "syscall" []
+              pure ()
+            OpCodeIntr AddPtr -> do
+              emitInstr "pop" ["r13"]
+              emitInstr "add" ["[rsp]", "r13"]
             OpCodePushToCallStack (Addr retAddr) (Addr jmpAddr) -> do
               emitInstr "add" ["r15", "8"]
               emitInstr "mov" ["qword [r15]", "ip_" <> Text.pack (show retAddr)]
@@ -150,8 +165,28 @@ epilogue = do
   emitInstr "mov" ["rdi", "0"]
   emitInstr "syscall" []
 
+stringLits :: CompilationM [(Int, String)]
+stringLits = do
+  opCodes <- gets compilationStateCode
+  let getStr (ip, op)
+        | OpCodePushLit (LitStrPtr str _) <- op = Just (ip, str)
+        | otherwise = Nothing
+  pure $ mapMaybe getStr $ zip [0 :: Int ..] opCodes
+
+emitStr :: (Int, String) -> CompilationM ()
+emitStr (ip, str) = do
+  emitVerbatim $
+    mconcat
+      [ "        str_"
+      , Text.pack (show ip)
+      , " db "
+      , Text.pack (show str)
+      ]
+
 prologue :: CompilationM ()
 prologue = do
+  strings <- stringLits
+
   emitGlobal "_start"
   emitSection ".bss"
   emitVerbatim "        horthCallStack resq 1024"
@@ -159,6 +194,7 @@ prologue = do
   emitVerbatim "        nl db 0x0a"
   emitVerbatim "        True db \"True\", 0x0a"
   emitVerbatim "        False db \"False\", 0x0a"
+  mapM_ emitStr strings
   emitSection ".text"
   emitLabel "print_uint"
   emitInstr "mov" ["rax", "rdi"]
