@@ -68,9 +68,12 @@ stacksEqual = stacksEqual' mempty
   where
     stacksEqual' :: forall (m :: Peano). [(Integer, HType)] -> Vec m HType -> Vec m HType -> Bool
     stacksEqual' _ Nil Nil = True
-    stacksEqual' tyVars (HTypeVar tyIdx :> ts1) (t2 :> ts2) =
+    stacksEqual' tyVars (HTypeVar tyIdx tys' :> ts1) (t2 :> ts2) =
       case lookup tyIdx tyVars of
-        Nothing -> stacksEqual' ((tyIdx, t2) : tyVars) ts1 ts2
+        Nothing ->
+          case tys' of
+            Nothing -> stacksEqual' ((tyIdx, t2) : tyVars) ts1 ts2
+            Just tys -> (t2 `elem` tys) && stacksEqual' ((tyIdx, t2) : tyVars) ts1 ts2
         Just t1 -> t1 == t2 && stacksEqual' tyVars ts1 ts2
     stacksEqual' tyVars (t1 :> ts1) (t2 :> ts2) =
       t1 == t2 && stacksEqual' tyVars ts1 ts2
@@ -85,7 +88,7 @@ typeCheck ast@(a : as) =
     $ go
   where
     pushType :: HType -> TypeCheckMachine ()
-    pushType (HTypeVar _) = error "pushType: Implementation bug - Type variable pushed"
+    pushType (HTypeVar _ _) = error "pushType: Implementation bug - Type variable pushed"
     pushType t = modify (\s -> s {typeCheckStack = t : typeCheckStack s})
 
     popTypes ::
@@ -128,7 +131,13 @@ typeCheck ast@(a : as) =
     generateTyVar = do
       n <- gets typeCheckUsedTyVars
       modify (\s -> s {typeCheckUsedTyVars = typeCheckUsedTyVars s + 1})
-      pure $ HTypeVar n
+      pure $ HTypeVar n Nothing
+
+    generateTyVar' :: [HType] -> TypeCheckMachine HType
+    generateTyVar' tys = do
+      n <- gets typeCheckUsedTyVars
+      modify (\s -> s {typeCheckUsedTyVars = typeCheckUsedTyVars s + 1})
+      pure $ HTypeVar n (Just tys)
 
     continueLinear :: [Ast] -> TypeCheckMachine ()
     continueLinear ast = case nonEmpty ast of
@@ -175,8 +184,9 @@ typeCheck ast@(a : as) =
           pushType HStrPtr
           continueLinear restAst
         AstIntr Add pos -> do
-          void $ popTypes (HInt :> HInt :> Nil) pos
-          pushType HInt
+          b <- generateTyVar' [HInt, HStrPtr]
+          _ :> b' :> Nil <- popTypes (HInt :> b :> Nil) pos
+          pushType b'
           continueLinear restAst
         AstIntr Sub pos -> do
           void $ popTypes (HInt :> HInt :> Nil) pos
@@ -231,10 +241,6 @@ typeCheck ast@(a : as) =
           continueLinear restAst
         AstIntr PrintS pos -> do
           void $ popTypes (HInt :> HStrPtr :> Nil) pos
-          continueLinear restAst
-        AstIntr AddPtr pos -> do
-          void $ popTypes (HInt :> HStrPtr :> Nil) pos
-          pushType HStrPtr
           continueLinear restAst
         AstIntr (Jmp _) _ -> do
           error "'jmp' shouldn't be in the AST"

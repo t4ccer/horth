@@ -63,8 +63,11 @@ interpret = runReaderT (evalStateT (runMachine interpret') (MachineState (Stack 
           incrementPC
         OpCodeIntr Add -> do
           LitInt a <- pop
-          LitInt b <- pop
-          push $ LitInt $ b + a
+          b' <- pop
+          case b' of
+            LitInt b -> push $ LitInt $ b + a
+            LitStrPtr str offset -> push $ LitStrPtr str (offset + a)
+            _ -> error "OpCodeIntr: Add: invalid type"
           incrementPC
         OpCodeIntr Sub -> do
           LitInt a <- pop
@@ -128,11 +131,6 @@ interpret = runReaderT (evalStateT (runMachine interpret') (MachineState (Stack 
           LitInt len <- pop
           LitStrPtr str offset <- pop
           liftIO $ putStr $ take (fromIntegral len) $ drop (fromIntegral offset) str
-          incrementPC
-        OpCodeIntr AddPtr -> do
-          LitInt a <- pop
-          LitStrPtr str offset <- pop
-          push $ LitStrPtr str (offset + a)
           incrementPC
         OpCodePushToCallStack retAddr callAddr -> do
           modify (\s -> s {callStack = retAddr : callStack s})

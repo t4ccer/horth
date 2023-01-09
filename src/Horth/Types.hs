@@ -70,7 +70,6 @@ data Intrinsic
     PrintI
   | PrintB
   | PrintS
-  | AddPtr
   deriving stock (Show, Eq)
 
 prettyIntrinsic :: Intrinsic -> Text
@@ -84,7 +83,7 @@ data HType
   | HBool
   | HAddr
   | HStrPtr
-  | HTypeVar Integer
+  | HTypeVar Integer (Maybe [HType])
   deriving stock (Show, Eq)
 
 -- * Rich AST

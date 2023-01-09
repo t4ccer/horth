@@ -50,7 +50,6 @@ horthP =
       , keywordP "printI" (AstIntr PrintI)
       , keywordP "printB" (AstIntr PrintB)
       , keywordP "printS" (AstIntr PrintS)
-      , keywordP "addPtr" (AstIntr AddPtr)
       , holeP
       , nameP
       ]
