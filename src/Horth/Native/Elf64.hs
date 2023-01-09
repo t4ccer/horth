@@ -120,7 +120,8 @@ compileElf64 code =
               pure ()
             OpCodeIntr Read1 -> do
               emitInstr "pop " ["r13"]
-              emitInstr "mov" ["r12", "[r13]"] -- I'm not sure if this is correct (how many bytes are read)
+              emitInstr "mov" ["r12", "[r13]"]
+              emitInstr "and" ["r12", "0xff"]
               emitInstr "push" ["r12"]
             OpCodePushToCallStack (Addr retAddr) (Addr jmpAddr) -> do
               emitInstr "add" ["r15", "8"]
