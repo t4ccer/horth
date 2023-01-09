@@ -50,6 +50,7 @@ horthP =
       , keywordP "printI" (AstIntr PrintI)
       , keywordP "printB" (AstIntr PrintB)
       , keywordP "printS" (AstIntr PrintS)
+      , keywordP "read1" (AstIntr Read1)
       , holeP
       , nameP
       ]
@@ -101,6 +102,7 @@ tyParser = do
     asum
       [ HInt <$ string "int"
       , HBool <$ string "bool"
+      , HStrPtr <$ string "*str"
       ]
   void $ optional whiteSpaceP
   pure ty

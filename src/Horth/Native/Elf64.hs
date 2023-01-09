@@ -118,6 +118,10 @@ compileElf64 code =
               emitInstr "mov" ["rsi", "r13"]
               emitInstr "syscall" []
               pure ()
+            OpCodeIntr Read1 -> do
+              emitInstr "pop " ["r13"]
+              emitInstr "mov" ["r12", "[r13]"] -- I'm not sure if this is correct (how many bytes are read)
+              emitInstr "push" ["r12"]
             OpCodePushToCallStack (Addr retAddr) (Addr jmpAddr) -> do
               emitInstr "add" ["r15", "8"]
               emitInstr "mov" ["qword [r15]", "ip_" <> Text.pack (show retAddr)]

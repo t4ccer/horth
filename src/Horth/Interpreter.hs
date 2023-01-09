@@ -4,6 +4,7 @@ import Control.Monad (void)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Reader (MonadReader, ReaderT, asks, runReaderT)
 import Control.Monad.State (MonadState, StateT, evalStateT, gets, modify)
+import Data.Char (ord)
 import Data.Vector qualified as V
 
 import Horth.Compiler (Code (getCode))
@@ -58,6 +59,9 @@ interpret = runReaderT (evalStateT (runMachine interpret') (MachineState (Stack 
       --   traceShowM (show op <> " <- " <> show st)
 
       currentOp >>= \case
+        OpCodePushLit (LitStrPtr str off) -> do
+          push $ LitStrPtr (str <> "\0") off
+          incrementPC
         OpCodePushLit lit -> do
           push lit
           incrementPC
@@ -131,6 +135,10 @@ interpret = runReaderT (evalStateT (runMachine interpret') (MachineState (Stack 
           LitInt len <- pop
           LitStrPtr str offset <- pop
           liftIO $ putStr $ take (fromIntegral len) $ drop (fromIntegral offset) str
+          incrementPC
+        OpCodeIntr Read1 -> do
+          LitStrPtr str offset <- pop
+          push $ LitInt $ fromIntegral $ ord (str !! (fromIntegral offset))
           incrementPC
         OpCodePushToCallStack retAddr callAddr -> do
           modify (\s -> s {callStack = retAddr : callStack s})

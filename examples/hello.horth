@@ -1,3 +1,14 @@
-"foo Hello, World!"
-4 add
-12 printS
+proc strLen (*str -> int)
+  proc strLenGo (*str int -> *str int)
+    dup read1 0 eqi not if
+      1 add
+      swap
+      1 add
+      swap
+      strLenGo
+    end
+  end
+  0 swap strLenGo pop
+end
+
+"Hello, World!" dup strLen printS

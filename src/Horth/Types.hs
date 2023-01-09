@@ -70,6 +70,8 @@ data Intrinsic
     PrintI
   | PrintB
   | PrintS
+  | -- | Read one byte from a ptr
+    Read1
   deriving stock (Show, Eq)
 
 prettyIntrinsic :: Intrinsic -> Text
