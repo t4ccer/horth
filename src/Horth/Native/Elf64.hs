@@ -182,6 +182,7 @@ emitStr (ip, str) = do
       , Text.pack (show ip)
       , " db "
       , Text.pack (show str)
+      , ", 0"
       ]
 
 prologue :: CompilationM ()
