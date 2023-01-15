@@ -11,4 +11,4 @@ proc strLen (*str -> int)
   0 swap strLenGo pop
 end
 
-"Hello, World!" dup strLen printS
+"Hello, World!" dup strLen prints

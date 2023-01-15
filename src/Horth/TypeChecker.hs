@@ -102,7 +102,7 @@ typeCheck ast@(a : as) =
       stackLst <- gets ((take expectedLen) . typeCheckStack)
       let prettyOp = \case
             AstIntr intr _ -> prettyIntrinsic intr
-            AstIf _ _ -> "if"
+            AstIf _ _ _ -> "if"
             _ -> error "It shouldn't be here"
       let err =
             throwError $
@@ -250,7 +250,7 @@ typeCheck ast@(a : as) =
           error "'jmp' shouldn't be in the AST"
         AstIntr (Jet _) _ -> do
           error "'jet' shouldn't be in the AST"
-        AstIf ifAst pos -> do
+        AstIf ifAst pos _ -> do
           void $ popTypes (HBool :> Nil) pos
           case nonEmpty ifAst of
             Nothing -> pure ()
@@ -276,7 +276,7 @@ typeCheck ast@(a : as) =
                       ]
               modify (\s -> s {typeCheckLabels = labels})
           continueLinear restAst
-        AstProc procName inStack outStack procAst pos -> do
+        AstProc procName inStack outStack procAst pos _ -> do
           saveProcType procName inStack outStack
           preProcStack <- gets typeCheckStack
 

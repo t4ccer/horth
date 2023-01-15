@@ -12,7 +12,8 @@ import Horth.Cli (
     compileOptsOutput
   ),
   ExeFormat (ExeFormatElf64),
-  Mode (ModeCompile, ModeRun),
+  Mode (ModeCompile, ModePretty, ModeRun),
+  PrettyOpts (prettyOptsInput),
   RunOpts (runOptsInput),
   getMode,
  )
@@ -20,6 +21,7 @@ import Horth.Compiler (compile)
 import Horth.Interpreter (interpret)
 import Horth.Native.Elf64 (compileElf64)
 import Horth.Parser (parse)
+import Horth.Pretty (prettyAst)
 import Horth.TypeChecker (TypeCheckedAst, typeCheck)
 
 getAst :: FilePath -> IO TypeCheckedAst
@@ -50,3 +52,8 @@ main = do
     ModeRun opts -> do
       ast <- getAst opts.runOptsInput
       void $ interpret $ compile ast
+    ModePretty opts -> do
+      sourceCode <- Text.readFile opts.prettyOptsInput
+      case parse opts.prettyOptsInput sourceCode of
+        Left e -> error $ show e
+        Right ast -> Text.putStr $ prettyAst ast

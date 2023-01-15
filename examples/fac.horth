@@ -14,4 +14,4 @@ proc square (int -> int)
   dup mul
 end
 
-2 square fac printI
+2 square fac printi

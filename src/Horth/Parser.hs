@@ -47,9 +47,9 @@ horthP =
       , keywordP "swap" (AstIntr Swap)
       , keywordP "pop" (AstIntr Pop)
       , keywordP "over" (AstIntr Over)
-      , keywordP "printI" (AstIntr PrintI)
-      , keywordP "printB" (AstIntr PrintB)
-      , keywordP "printS" (AstIntr PrintS)
+      , keywordP "printi" (AstIntr PrintI)
+      , keywordP "printb" (AstIntr PrintB)
+      , keywordP "prints" (AstIntr PrintS)
       , keywordP "read1" (AstIntr Read1)
       , holeP
       , nameP
@@ -74,9 +74,10 @@ procP = do
 
   procAst <- many horthP
 
+  endPos <- getSourcePos
   void $ string "end"
   whiteSpaceEndP
-  pure $ AstProc procName inTy outTy procAst procPos
+  pure $ AstProc procName inTy outTy procAst procPos endPos
 
 ifP :: Parser Ast
 ifP = do
@@ -85,8 +86,9 @@ ifP = do
 
   ifAst <- many horthP
 
+  endPos <- getSourcePos
   void $ string "end" >> whiteSpaceEndP
-  pure $ AstIf ifAst ifPos
+  pure $ AstIf ifAst ifPos endPos
 
 nameP :: Parser Ast
 nameP = do

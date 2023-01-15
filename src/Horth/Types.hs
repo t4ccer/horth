@@ -32,7 +32,7 @@ prettyLit :: Lit -> Text
 prettyLit (LitInt i) = Text.pack $ show i
 prettyLit (LitBool True) = "true"
 prettyLit (LitBool False) = "false"
-prettyLit (LitStrPtr str offset) = Text.pack $ show str <> "@" <> show offset
+prettyLit (LitStrPtr str _offset) = Text.pack $ show str
 
 newtype Addr = Addr {getAddr :: Int}
   deriving stock (Show, Eq)
@@ -94,7 +94,7 @@ data Ast
   = AstPushLit Lit SourcePos
   | AstIntr Intrinsic SourcePos
   | AstName Text SourcePos
-  | AstIf [Ast] SourcePos
-  | AstProc Text [HType] [HType] [Ast] SourcePos
+  | AstIf [Ast] SourcePos SourcePos
+  | AstProc Text [HType] [HType] [Ast] SourcePos SourcePos
   | AstHole Text SourcePos
   deriving stock (Show, Eq)

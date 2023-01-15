@@ -29,6 +29,7 @@ library
       Horth.Interpreter
       Horth.Native.Elf64
       Horth.Parser
+      Horth.Pretty
       Horth.TypeChecker
       Horth.Types
   other-modules:

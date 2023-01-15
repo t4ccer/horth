@@ -32,7 +32,14 @@
         inputs.pre-commit-hooks-nix.flakeModule
         inputs.dream2nix.flakeModuleBeta
       ];
-      systems = inputs.nixpkgs.lib.systems.flakeExposed;
+
+      # Hack to make following work with IFD:
+      # nix flake show --impure --allow-import-from-derivation
+      systems =
+        if builtins.hasAttr "currentSystem" builtins
+        then [builtins.currentSystem]
+        else inputs.nixpkgs.lib.systems.flakeExposed;
+
       dream2nix = {
         config.projectRoot = ./.;
       };
@@ -96,8 +103,13 @@
               export LC_ALL=C.UTF-8
               export LANG=C.UTF-8
 
+              echo "Pretty-printing ${file}..."
+              horth pretty --input ${file} > pretty.horth
+              (diff ${file} pretty.horth) || (echo "Pretty:    FAIL" && exit 1)
+              echo "Pretty:    PASS"
+
               echo "Running interpreter on ${file}..."
-              horth run --input ${file} | tee interpreted.out
+              horth run --input ${file} > interpreted.out
               echo ""
 
               echo "Compiling ${file}..."
@@ -106,16 +118,23 @@
               ld out.o -o out
 
               echo "Running compiled output..."
-              ./out | tee compiled.out
+              ./out > compiled.out
               echo ""
-              (diff interpreted.out compiled.out) || (echo "FAIL" && exit 1)
-              echo "PASS"
+              (diff interpreted.out compiled.out) || (echo "Execution: FAIL" && exit 1)
+              echo "Execution: PASS"
 
               touch $out
             '';
         in {
           hello = testHorthFile "hello" ./examples/hello.horth;
           fac = testHorthFile "fac" ./examples/fac.horth;
+          combined =
+            pkgs.runCommand "combined-test"
+            {
+              nativeBuildInputs =
+                builtins.attrValues
+                (pkgs.lib.attrsets.filterAttrs (name: _: name != "combined") self'.checks);
+            } "touch $out";
         };
 
         devShells.default = let
