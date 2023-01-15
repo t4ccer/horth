@@ -31,9 +31,9 @@ addToPos n pos = mkPos $ (+ n) $ unPos pos
 prettyType :: HType -> Text
 prettyType HInt = "int"
 prettyType HBool = "bool"
-prettyType HAddr = "addr"
-prettyType HStrPtr = "*str"
-prettyType (HTypeVar _ _) = error "prettyType: Not implemented"
+prettyType HPtr = "ptr"
+prettyType HAddr = error "prettyType: HAddr: Not implemented"
+prettyType (HTypeVar _ _) = error "prettyType: HTypeVar: Not implemented"
 
 prettyTypes :: [HType] -> Text
 prettyTypes = Text.intercalate " " . fmap prettyType

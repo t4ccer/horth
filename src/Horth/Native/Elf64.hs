@@ -1,6 +1,8 @@
 module Horth.Native.Elf64 (compileElf64) where
 
 import Control.Monad.State (MonadState, State, execState, gets, modify)
+import Data.ByteString (ByteString)
+import Data.ByteString qualified as BS
 import Data.Maybe (mapMaybe)
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -47,11 +49,13 @@ compileElf64 code =
           case opCode of
             OpCodePushLit (LitInt i) -> do
               emitInstr "push" [Text.pack $ show i]
+            OpCodePushLit (LitPtr _) -> do
+              error "compileOpCode: OpCodePushLit (LitPtr _)"
             OpCodePushLit (LitBool True) -> do
               emitInstr "push" ["1"]
             OpCodePushLit (LitBool False) -> do
               emitInstr "push" ["0"]
-            OpCodePushLit (LitStrPtr _ _) -> do
+            OpCodePushLit (LitStr _) -> do
               emitInstr "push" ["str_" <> Text.pack (show currAddr)]
             OpCodeIntr Add -> do
               emitInstr "pop" ["r13"]
@@ -111,13 +115,11 @@ compileElf64 code =
               -- TODO
               error "PrintB: not implemented"
             OpCodeIntr PrintS -> do
-              emitInstr "pop " ["rdx"]
-              emitInstr "pop " ["r13"]
               emitInstr "mov" ["rax", "1"]
               emitInstr "mov" ["rdi", "1"]
-              emitInstr "mov" ["rsi", "r13"]
+              emitInstr "pop " ["rdx"]
+              emitInstr "pop " ["rsi"]
               emitInstr "syscall" []
-              pure ()
             OpCodeIntr Read1 -> do
               emitInstr "pop " ["r13"]
               emitInstr "mov" ["r12", "[r13]"]
@@ -167,15 +169,15 @@ epilogue = do
   emitInstr "mov" ["rdi", "0"]
   emitInstr "syscall" []
 
-stringLits :: CompilationM [(Int, String)]
+stringLits :: CompilationM [(Int, ByteString)]
 stringLits = do
   opCodes <- gets compilationStateCode
   let getStr (ip, op)
-        | OpCodePushLit (LitStrPtr str _) <- op = Just (ip, str)
+        | OpCodePushLit (LitStr str) <- op = Just (ip, str)
         | otherwise = Nothing
   pure $ mapMaybe getStr $ zip [0 :: Int ..] opCodes
 
-emitStr :: (Int, String) -> CompilationM ()
+emitStr :: (Int, ByteString) -> CompilationM ()
 emitStr (ip, str) = do
   emitVerbatim $
     mconcat
@@ -191,13 +193,16 @@ prologue = do
   strings <- stringLits
 
   emitGlobal "_start"
-  emitSection ".bss"
-  emitVerbatim "        horthCallStack resq 1024"
   emitSection ".data"
   emitVerbatim "        nl db 0x0a"
   emitVerbatim "        True db \"True\", 0x0a"
   emitVerbatim "        False db \"False\", 0x0a"
   mapM_ emitStr strings
+  emitSection ".bss"
+  -- +1 is for null byte. TODO: Escape strings
+  emitVerbatim ("        mem resq " <> Text.pack (show (640_000 - sum (fmap ((+ 1) . BS.length . snd) strings))))
+  emitVerbatim "        horthCallStack resq 1024"
+
   emitSection ".text"
   emitLabel "print_uint"
   emitInstr "mov" ["rax", "rdi"]

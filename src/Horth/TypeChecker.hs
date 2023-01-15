@@ -180,11 +180,14 @@ typeCheck ast@(a : as) =
         AstPushLit (LitBool _) _ -> do
           pushType HBool
           continueLinear restAst
-        AstPushLit (LitStrPtr _ _) _ -> do
-          pushType HStrPtr
+        AstPushLit (LitStr _) _ -> do
+          pushType HPtr
+          continueLinear restAst
+        AstPushLit (LitPtr _) _ -> do
+          pushType HPtr
           continueLinear restAst
         AstIntr Add pos -> do
-          b <- generateTyVar' [HInt, HStrPtr]
+          b <- generateTyVar' [HInt, HPtr]
           _ :> b' :> Nil <- popTypes (HInt :> b :> Nil) pos
           pushType b'
           continueLinear restAst
@@ -240,10 +243,10 @@ typeCheck ast@(a : as) =
           void $ popTypes (HBool :> Nil) pos
           continueLinear restAst
         AstIntr PrintS pos -> do
-          void $ popTypes (HInt :> HStrPtr :> Nil) pos
+          void $ popTypes (HInt :> HPtr :> Nil) pos
           continueLinear restAst
         AstIntr Read1 pos -> do
-          void $ popTypes (HStrPtr :> Nil) pos
+          void $ popTypes (HPtr :> Nil) pos
           pushType HInt
           continueLinear restAst
         AstIntr (Jmp _) _ -> do

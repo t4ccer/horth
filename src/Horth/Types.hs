@@ -2,6 +2,7 @@
 
 module Horth.Types where
 
+import Data.ByteString (ByteString)
 import Data.Int (Int64)
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -25,14 +26,16 @@ prettyOpCode OpCodePopJmpFromCallStack = "popCall"
 data Lit
   = LitInt Int64
   | LitBool Bool
-  | LitStrPtr String Int64 -- TODO: ByteString
+  | LitStr ByteString
+  | LitPtr Int64
   deriving stock (Show, Eq)
 
 prettyLit :: Lit -> Text
 prettyLit (LitInt i) = Text.pack $ show i
 prettyLit (LitBool True) = "true"
 prettyLit (LitBool False) = "false"
-prettyLit (LitStrPtr str _offset) = Text.pack $ show str
+prettyLit (LitStr str) = Text.pack $ show str
+prettyLit (LitPtr ptr) = "*" <> Text.pack (show ptr)
 
 newtype Addr = Addr {getAddr :: Int}
   deriving stock (Show, Eq)
@@ -84,7 +87,7 @@ data HType
   = HInt
   | HBool
   | HAddr
-  | HStrPtr
+  | HPtr
   | HTypeVar Integer (Maybe [HType])
   deriving stock (Show, Eq)
 

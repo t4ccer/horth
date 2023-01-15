@@ -2,6 +2,7 @@ module Horth.Parser (horthParser, Horth.Parser.parse) where
 
 import Control.Applicative (asum)
 import Control.Monad (guard, void)
+import Data.ByteString.Char8 qualified as Char8
 import Data.Char (isSpace)
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -104,7 +105,7 @@ tyParser = do
     asum
       [ HInt <$ string "int"
       , HBool <$ string "bool"
-      , HStrPtr <$ string "*str"
+      , HPtr <$ string "ptr"
       ]
   void $ optional whiteSpaceP
   pure ty
@@ -140,7 +141,7 @@ strPtrLitP = do
   str <- many (satisfy (/= '"') <?> "not double quote")
   void $ char '"'
   whiteSpaceEndP
-  return $ AstPushLit (LitStrPtr str 0) strPos
+  return $ AstPushLit (LitStr $ Char8.pack str) strPos
 
 keywordP :: Show ast => Text -> (SourcePos -> ast) -> Parser ast
 keywordP keyword ast = do

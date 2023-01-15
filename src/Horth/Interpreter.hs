@@ -4,8 +4,11 @@ import Control.Monad (void)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Reader (MonadReader, ReaderT, asks, runReaderT)
 import Control.Monad.State (MonadState, StateT, evalStateT, gets, modify)
-import Data.Char (ord)
+import Data.ByteString (ByteString)
+import Data.ByteString qualified as BS
+import Data.Int (Int64)
 import Data.Vector qualified as V
+import Data.Word (Word8)
 
 import Horth.Compiler (Code (getCode))
 import Horth.Types
@@ -14,6 +17,7 @@ data MachineState = MachineState
   { stack :: Stack
   , pc :: Addr
   , callStack :: [Addr]
+  , memory :: V.Vector Word8
   }
   deriving stock (Show, Eq)
 
@@ -25,7 +29,10 @@ instance MonadFail Machine where
   fail s = error $ "fail(Machine): " <> s <> ". This is a bug."
 
 interpret :: Code -> IO Stack
-interpret = runReaderT (evalStateT (runMachine interpret') (MachineState (Stack []) 0 []))
+interpret =
+  runReaderT
+    . flip evalStateT (MachineState (Stack []) 0 [] (V.replicate 640_000 0)) -- Ought to be enough for anybody
+    $ runMachine interpret'
   where
     isDone :: Machine Bool
     isDone = do
@@ -51,16 +58,21 @@ interpret = runReaderT (evalStateT (runMachine interpret') (MachineState (Stack 
       modify (\s -> s {stack = Stack rest})
       pure a
 
+    -- Add string to memory and return address
+    addStrToMem :: ByteString -> Machine Int64
+    addStrToMem str = do
+      mem <- gets memory
+      let startPtr = V.length mem
+      let mem' = mem <> V.fromList (BS.unpack str <> [0])
+      modify (\s -> s {memory = mem'})
+      pure $ fromIntegral startPtr
+
     interpret' :: Machine Stack
     interpret' = do
-      -- do
-      --   op <- currentOp
-      --   st <- get
-      --   traceShowM (show op <> " <- " <> show st)
-
       currentOp >>= \case
-        OpCodePushLit (LitStrPtr str off) -> do
-          push $ LitStrPtr (str <> "\0") off
+        OpCodePushLit (LitStr str) -> do
+          ptr <- addStrToMem str
+          push $ LitPtr ptr
           incrementPC
         OpCodePushLit lit -> do
           push lit
@@ -70,7 +82,7 @@ interpret = runReaderT (evalStateT (runMachine interpret') (MachineState (Stack 
           b' <- pop
           case b' of
             LitInt b -> push $ LitInt $ b + a
-            LitStrPtr str offset -> push $ LitStrPtr str (offset + a)
+            LitPtr b -> push $ LitPtr $ b + a
             _ -> error "OpCodeIntr: Add: invalid type"
           incrementPC
         OpCodeIntr Sub -> do
@@ -133,12 +145,14 @@ interpret = runReaderT (evalStateT (runMachine interpret') (MachineState (Stack 
           incrementPC
         OpCodeIntr PrintS -> do
           LitInt len <- pop
-          LitStrPtr str offset <- pop
-          liftIO $ putStr $ take (fromIntegral len) $ drop (fromIntegral offset) str
+          LitPtr ptr <- pop
+          mem <- gets memory
+          liftIO $ BS.putStr $ BS.pack $ V.toList $ V.take (fromIntegral len) $ V.drop (fromIntegral ptr) mem
           incrementPC
         OpCodeIntr Read1 -> do
-          LitStrPtr str offset <- pop
-          push $ LitInt $ fromIntegral $ ord (str !! (fromIntegral offset))
+          LitPtr ptr <- pop
+          mem <- gets memory
+          push $ LitInt $ fromIntegral $ mem V.! (fromIntegral ptr)
           incrementPC
         OpCodePushToCallStack retAddr callAddr -> do
           modify (\s -> s {callStack = retAddr : callStack s})
