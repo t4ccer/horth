@@ -102,6 +102,7 @@ library:
     - mtl
     - transformers
     - optparse-applicative
+    - typed-process
     
 executables:
   horth:
@@ -128,3 +129,5 @@ executables:
     dependencies:
     - horth
     - text
+    - typed-process
+    - filepath

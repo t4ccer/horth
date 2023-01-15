@@ -2,8 +2,10 @@ module Main (main) where
 
 import Control.Monad (void)
 import Data.Text.IO qualified as Text
-import System.Exit (exitFailure)
+import System.Exit (ExitCode (ExitSuccess), exitFailure, exitWith)
+import System.FilePath (addExtension)
 import System.IO (stderr)
+import System.Process.Typed (proc, runProcess)
 
 import Horth.Cli (
   CompileOpts (
@@ -16,6 +18,7 @@ import Horth.Cli (
   PrettyOpts (prettyOptsInput),
   RunOpts (runOptsInput),
   getMode,
+  prettyFormat,
  )
 import Horth.Compiler (compile)
 import Horth.Interpreter (interpret)
@@ -39,6 +42,11 @@ getAst fp = do
       Right res -> pure res
   pure ast
 
+forwardExitCode :: ExitCode -> IO ()
+forwardExitCode = \case
+  ExitSuccess -> pure ()
+  code -> exitWith code
+
 main :: IO ()
 main = do
   mode <- getMode
@@ -48,7 +56,11 @@ main = do
       let compileNative =
             case opts.compileOptsFormat of
               ExeFormatElf64 -> compileElf64
-      Text.writeFile opts.compileOptsOutput $ compileNative $ compile ast
+      Text.writeFile (addExtension opts.compileOptsOutput ".asm") $ compileNative $ compile ast
+      runProcess (proc "nasm" ["-f", prettyFormat opts.compileOptsFormat, addExtension opts.compileOptsOutput ".asm"])
+        >>= forwardExitCode
+      runProcess (proc "ld" [addExtension opts.compileOptsOutput ".o", "-o", opts.compileOptsOutput])
+        >>= forwardExitCode
     ModeRun opts -> do
       ast <- getAst opts.runOptsInput
       void $ interpret $ compile ast

@@ -113,9 +113,7 @@
               echo ""
 
               echo "Compiling ${file}..."
-              horth compile --input ${file} --output out.asm --format elf64
-              nasm -f elf64 out.asm
-              ld out.o -o out
+              horth compile --input ${file} --output out --format elf64
 
               echo "Running compiled output..."
               ./out > compiled.out
