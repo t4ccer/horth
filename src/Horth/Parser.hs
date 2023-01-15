@@ -52,6 +52,8 @@ horthP =
       , keywordP "printb" (AstIntr PrintB)
       , keywordP "prints" (AstIntr PrintS)
       , keywordP "read1" (AstIntr Read1)
+      , keywordP "write1" (AstIntr Write1)
+      , keywordP "mem" (AstIntr Mem)
       , holeP
       , nameP
       ]

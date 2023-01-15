@@ -125,6 +125,12 @@ compileElf64 code =
               emitInstr "mov" ["r12", "[r13]"]
               emitInstr "and" ["r12", "0xff"]
               emitInstr "push" ["r12"]
+            OpCodeIntr Write1 -> do
+              emitInstr "pop" ["r13"]
+              emitInstr "pop" ["r12"]
+              emitInstr "mov" ["[r13]", "r12b"]
+            OpCodeIntr Mem -> do
+              emitInstr "push" ["mem"]
             OpCodePushToCallStack (Addr retAddr) (Addr jmpAddr) -> do
               emitInstr "add" ["r15", "8"]
               emitInstr "mov" ["qword [r15]", "ip_" <> Text.pack (show retAddr)]

@@ -1,0 +1,21 @@
+proc str_len (ptr -> int)
+  proc str_len_go (ptr int -> ptr int)
+    dup read1 0 eqi not if
+      1 add
+      swap
+      1 add
+      swap
+      str_len_go
+    end
+  end
+  0 swap str_len_go pop
+end
+
+proc print_null_term_str (ptr -> )
+  dup str_len prints
+end
+
+65 mem write1
+66 mem 1 add write1
+67 mem 2 add write1
+mem print_null_term_str

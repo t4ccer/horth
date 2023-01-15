@@ -8,6 +8,7 @@ import Data.ByteString (ByteString)
 import Data.ByteString qualified as BS
 import Data.Int (Int64)
 import Data.Vector qualified as V
+import Data.Vector.Mutable qualified as MV
 import Data.Word (Word8)
 
 import Horth.Compiler (Code (getCode))
@@ -153,6 +154,15 @@ interpret =
           LitPtr ptr <- pop
           mem <- gets memory
           push $ LitInt $ fromIntegral $ mem V.! (fromIntegral ptr)
+          incrementPC
+        OpCodeIntr Write1 -> do
+          LitPtr ptr <- pop
+          LitInt val <- pop
+          -- TODO: Be smart about 'fromIntegral' here
+          modify (\s -> s {memory = V.modify (\v -> MV.write v (fromIntegral ptr) (fromIntegral val)) $ memory s})
+          incrementPC
+        OpCodeIntr Mem -> do
+          push $ LitPtr 0
           incrementPC
         OpCodePushToCallStack retAddr callAddr -> do
           modify (\s -> s {callStack = retAddr : callStack s})

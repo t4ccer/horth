@@ -75,6 +75,8 @@ data Intrinsic
   | PrintS
   | -- | Read one byte from a ptr
     Read1
+  | Write1
+  | Mem
   deriving stock (Show, Eq)
 
 prettyIntrinsic :: Intrinsic -> Text

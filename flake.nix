@@ -126,6 +126,7 @@
         in {
           hello = testHorthFile "hello" ./examples/hello.horth;
           fac = testHorthFile "fac" ./examples/fac.horth;
+          mem = testHorthFile "mem" ./examples/mem.horth;
           combined =
             pkgs.runCommand "combined-test"
             {
