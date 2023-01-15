@@ -6,6 +6,7 @@ import System.Exit (ExitCode (ExitSuccess), exitFailure, exitWith)
 import System.FilePath (addExtension)
 import System.IO (stderr)
 import System.Process.Typed (proc, runProcess)
+import Text.Megaparsec.Error (errorBundlePretty)
 
 import Horth.Cli (
   CompileOpts (
@@ -32,7 +33,7 @@ getAst fp = do
   sourceCode <- Text.readFile fp
   parsedAst <-
     case parse fp sourceCode of
-      Left e -> error $ show e
+      Left e -> error $ errorBundlePretty e
       Right ast -> pure ast
   (ast, _) <-
     case typeCheck parsedAst of

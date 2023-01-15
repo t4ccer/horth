@@ -103,6 +103,7 @@ library:
     - transformers
     - optparse-applicative
     - typed-process
+    - bytestring
     
 executables:
   horth:
@@ -131,3 +132,4 @@ executables:
     - text
     - typed-process
     - filepath
+    - megaparsec
