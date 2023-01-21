@@ -38,7 +38,7 @@ prettyLit (LitStr str) = Text.pack $ show str
 prettyLit (LitPtr ptr) = "*" <> Text.pack (show ptr)
 
 newtype Addr = Addr {getAddr :: Int}
-  deriving stock (Show, Eq)
+  deriving stock (Show, Eq, Ord)
   deriving newtype (Num)
 
 prettyAddr :: Addr -> Text

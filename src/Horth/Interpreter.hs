@@ -1,14 +1,17 @@
 module Horth.Interpreter (interpret) where
 
-import Control.Monad (void)
+import Control.Monad (forM_, void)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Reader (MonadReader, ReaderT, asks, runReaderT)
 import Control.Monad.State (MonadState, StateT, evalStateT, gets, modify)
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as BS
 import Data.Int (Int64)
+import Data.Kind (Type)
+import Data.Map (Map)
+import Data.Map qualified as Map
 import Data.Vector qualified as V
-import Data.Vector.Mutable qualified as MV
+import Data.Vector.Unboxed.Mutable qualified as UMV
 import Data.Word (Word8)
 
 import Horth.Compiler (Code (getCode))
@@ -18,9 +21,10 @@ data MachineState = MachineState
   { stack :: Stack
   , pc :: Addr
   , callStack :: [Addr]
-  , memory :: V.Vector Word8
+  , memory :: UMV.IOVector Word8
+  , strings :: Map Addr Int64
+  , notAllocated :: Int64
   }
-  deriving stock (Show, Eq)
 
 newtype Machine a = Machine {runMachine :: StateT MachineState (ReaderT Code IO) a}
   deriving newtype (Functor, Applicative, Monad, MonadIO, MonadState MachineState, MonadReader Code)
@@ -30,10 +34,16 @@ instance MonadFail Machine where
   fail s = error $ "fail(Machine): " <> s <> ". This is a bug."
 
 interpret :: Code -> IO Stack
-interpret =
-  runReaderT
-    . flip evalStateT (MachineState (Stack []) 0 [] (V.replicate 640_000 0)) -- Ought to be enough for anybody
-    $ runMachine interpret'
+interpret code =
+  do
+    -- Ought to be enough for anybody
+    memVec <- UMV.replicate 640_000 0
+    flip runReaderT code
+      . flip evalStateT (MachineState (Stack []) 0 [] memVec mempty 0)
+      $ runMachine
+      $ do
+        emitStrings
+        interpret'
   where
     isDone :: Machine Bool
     isDone = do
@@ -48,7 +58,8 @@ interpret =
     currentOp = do
       pc <- gets pc
       code <- asks getCode
-      pure $ code V.! (getAddr pc)
+      let c = code V.! (getAddr pc)
+      pure c
 
     push :: Lit -> Machine ()
     push l = modify (\s -> s {stack = Stack (l : getStack (stack s))})
@@ -60,20 +71,40 @@ interpret =
       pure a
 
     -- Add string to memory and return address
-    addStrToMem :: ByteString -> Machine Int64
+    addStrToMem :: ByteString -> Machine ()
     addStrToMem str = do
+      pc <- gets pc
+      ptr <- gets notAllocated
       mem <- gets memory
-      let startPtr = V.length mem
-      let mem' = mem <> V.fromList (BS.unpack str <> [0])
-      modify (\s -> s {memory = mem'})
-      pure $ fromIntegral startPtr
+      let bytes = BS.unpack str
+      forM_ (zip [0 ..] bytes) $ \(offset, byte) -> do
+        liftIO $ UMV.write mem (fromIntegral ptr + offset) byte
+      modify
+        ( \s ->
+            s
+              { notAllocated = ptr + fromIntegral (BS.length str) + 2
+              , strings = Map.insert pc ptr (strings s)
+              }
+        )
+
+    emitStrings :: Machine ()
+    emitStrings = do
+      currentOp >>= \case
+        OpCodePushLit (LitStr str) -> addStrToMem str
+        _ -> pure ()
+      incrementPC
+      done <- isDone
+      if done
+        then modify (\s -> s {pc = 0})
+        else emitStrings
 
     interpret' :: Machine Stack
     interpret' = do
       currentOp >>= \case
-        OpCodePushLit (LitStr str) -> do
-          ptr <- addStrToMem str
-          push $ LitPtr ptr
+        OpCodePushLit (LitStr _) -> do
+          strs <- gets strings
+          pc' <- gets pc
+          push $ LitPtr $ (strs Map.! pc')
           incrementPC
         OpCodePushLit lit -> do
           push lit
@@ -148,21 +179,26 @@ interpret =
           LitInt len <- pop
           LitPtr ptr <- pop
           mem <- gets memory
-          liftIO $ BS.putStr $ BS.pack $ V.toList $ V.take (fromIntegral len) $ V.drop (fromIntegral ptr) mem
+          let strMem = UMV.slice (fromIntegral ptr) (fromIntegral len) mem
+          str <- liftIO $ mvecToList strMem
+          liftIO $ BS.putStr $ BS.pack str
           incrementPC
         OpCodeIntr Read1 -> do
           LitPtr ptr <- pop
           mem <- gets memory
-          push $ LitInt $ fromIntegral $ mem V.! (fromIntegral ptr)
+          ptrVal <- liftIO $ UMV.read mem (fromIntegral ptr)
+          push $ LitInt $ fromIntegral ptrVal
           incrementPC
         OpCodeIntr Write1 -> do
           LitPtr ptr <- pop
           LitInt val <- pop
           -- TODO: Be smart about 'fromIntegral' here
-          modify (\s -> s {memory = V.modify (\v -> MV.write v (fromIntegral ptr) (fromIntegral val)) $ memory s})
+          mem <- gets memory
+          liftIO $ UMV.write mem (fromIntegral ptr) (fromIntegral val)
           incrementPC
         OpCodeIntr Mem -> do
-          push $ LitPtr 0
+          addr <- gets notAllocated
+          push $ LitPtr addr
           incrementPC
         OpCodePushToCallStack retAddr callAddr -> do
           modify (\s -> s {callStack = retAddr : callStack s})
@@ -171,6 +207,8 @@ interpret =
           addr : rest <- gets callStack
           modify (\s -> s {callStack = rest})
           modify (\s -> s {pc = addr})
-
       done <- isDone
       if done then gets stack else interpret'
+
+mvecToList :: forall (a :: Type). UMV.Unbox a => UMV.IOVector a -> IO [a]
+mvecToList mvec = reverse <$> UMV.foldl' (\acc i -> i : acc) [] mvec

@@ -101,6 +101,7 @@ library:
     - megaparsec
     - mtl
     - transformers
+    - containers
     - optparse-applicative
     - typed-process
     - bytestring
