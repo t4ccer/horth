@@ -79,6 +79,7 @@ interpret code =
       let bytes = BS.unpack str
       forM_ (zip [0 ..] bytes) $ \(offset, byte) -> do
         liftIO $ UMV.write mem (fromIntegral ptr + offset) byte
+      liftIO $ UMV.write mem (fromIntegral ptr + length bytes) 0
       modify
         ( \s ->
             s
