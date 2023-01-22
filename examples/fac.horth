@@ -17,4 +17,4 @@ proc square (int -> int)
 end
 
 3 square fac dup printi
-"Is (3^2)! == 362880: " print_null_term_str 362880 eqi print_bool
+"Is (3^2)! == 362880: " print_str 362880 eqi print_bool

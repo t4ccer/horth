@@ -1,0 +1,27 @@
+#include stdlib
+
+proc print_from_fd (int -> )
+  dup
+  16 swap
+  mem swap
+  sys_read
+  dup
+  mem print_str_len
+  16 eqi if
+    print_from_fd
+  else
+    drop
+  end
+end
+
+2 eqi if
+  8 add read4 unsafe_mk_ptr
+  0 swap
+  0 swap
+  sys_open
+  dup
+  print_from_fd
+  sys_close drop
+else
+  "Usage: cat <file>" print_str drop
+end
