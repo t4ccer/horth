@@ -15,7 +15,8 @@ proc print_null_term_str (ptr -> )
   dup str_len prints
 end
 
-65 mem write1
-66 mem 1 add write1
-67 mem 2 add write1
-mem print_null_term_str
+"XXX - DEF"
+dup       65 swap write1
+dup 1 add 66 swap write1
+dup 2 add 67 swap write1
+print_null_term_str

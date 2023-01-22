@@ -83,7 +83,7 @@ interpret code =
       modify
         ( \s ->
             s
-              { notAllocated = ptr + fromIntegral (BS.length str) + 2
+              { notAllocated = ptr + fromIntegral (BS.length str) + 1
               , strings = Map.insert pc ptr (strings s)
               }
         )
@@ -120,8 +120,11 @@ interpret code =
           incrementPC
         OpCodeIntr Sub -> do
           LitInt a <- pop
-          LitInt b <- pop
-          push $ LitInt $ b - a
+          b' <- pop
+          case b' of
+            LitInt b -> push $ LitInt $ b - a
+            LitPtr b -> push $ LitPtr $ b - a
+            _ -> error "OpCodeIntr: Sub: invalid type"
           incrementPC
         OpCodeIntr Mul -> do
           LitInt a <- pop

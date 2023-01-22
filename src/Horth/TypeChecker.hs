@@ -192,8 +192,9 @@ typeCheck ast@(a : as) =
           pushType b'
           continueLinear restAst
         AstIntr Sub pos -> do
-          void $ popTypes (HInt :> HInt :> Nil) pos
-          pushType HInt
+          b <- generateTyVar' [HInt, HPtr]
+          _ :> b' :> Nil <- popTypes (HInt :> b :> Nil) pos
+          pushType b'
           continueLinear restAst
         AstIntr Mul pos -> do
           void $ popTypes (HInt :> HInt :> Nil) pos
