@@ -102,9 +102,8 @@ ifP = do
     Nothing -> pure []
     Just _ -> many horthP
 
-  endPos <- getSourcePos
   void $ string "end" >> whiteSpaceEndP
-  pure $ AstIf ifAst elseAst ifPos endPos
+  pure $ AstIf ifAst elseAst ifPos
 
 nameP :: Parser Ast
 nameP = do

@@ -106,7 +106,7 @@ typeCheck ast@(a : as) = do
       stackLst <- gets ((take expectedLen) . typeCheckStack)
       let prettyOp = \case
             AstIntr intr _ -> prettyIntrinsic intr
-            AstIf _ _ _ _ -> "if"
+            AstIf _ _ _ -> "if"
             _ -> error "It shouldn't be here"
       let err =
             throwError $
@@ -317,7 +317,7 @@ typeCheck ast@(a : as) = do
           error "'jet' shouldn't be in the AST"
         AstInclude _ _ -> do
           error "'include's should be already resolved"
-        AstIf ifAst elseAst pos _ -> do
+        AstIf ifAst elseAst pos -> do
           void $ popTypes (HBool :> Nil) pos
           stack <- gets typeCheckStack
           labels <- gets typeCheckLabels

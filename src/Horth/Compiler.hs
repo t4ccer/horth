@@ -104,7 +104,7 @@ compile (getTypeCheckedAst -> (allAst : allAsts)) =
         AstIntr intr _ -> do
           emit $ OpCodeIntr intr
           continueLinear restAst
-        AstIf ifAst elseAst _ _ -> mdo
+        AstIf ifAst elseAst _ -> mdo
           emit $ OpCodeIntr Not
           emit $ OpCodeIntr (Jet addrAfterIfBranch)
 
