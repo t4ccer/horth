@@ -96,15 +96,17 @@ library:
     - -Wunused-do-bind
     - -Werror
   dependencies:
-    - text
-    - vector
+    - bytestring
+    - containers
+    - directory
+    - filepath
     - megaparsec
     - mtl
-    - transformers
-    - containers
     - optparse-applicative
+    - text
+    - transformers
     - typed-process
-    - bytestring
+    - vector
     
 executables:
   horth:
@@ -129,8 +131,9 @@ executables:
     - -fprint-explicit-kinds
     - -Wunused-do-bind
     dependencies:
+    - directory
+    - filepath
     - horth
+    - megaparsec
     - text
     - typed-process
-    - filepath
-    - megaparsec

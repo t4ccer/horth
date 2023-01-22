@@ -90,43 +90,57 @@
 
         checks = let
           # Test if interpreted output is the same as compiled output
-          testHorthFile = name: file:
-            pkgs.runCommand name {
+          testHorthFile = fname: let
+            file = fname + ".horth";
+          in
+            pkgs.stdenvNoCC.mkDerivation {
+              name = "horth-test-${fname}";
+              src = ./examples;
               nativeBuildInputs = [
                 pkgs.nasm
                 pkgs.binutils
                 pkgs.coreutils
                 self'.packages.horth
               ];
-            } ''
-              export LC_CTYPE=C.UTF-8
-              export LC_ALL=C.UTF-8
-              export LANG=C.UTF-8
 
-              echo "Pretty-printing ${file}..."
-              horth pretty --input ${file} > pretty.horth
-              (diff ${file} pretty.horth) || (echo "Pretty:    FAIL" && exit 1)
-              echo "Pretty:    PASS"
+              configurePhase = ''
+                export LC_CTYPE=C.UTF-8
+                export LC_ALL=C.UTF-8
+                export LANG=C.UTF-8
+              '';
 
-              echo "Running interpreter on ${file}..."
-              horth run --input ${file} > interpreted.out
-              echo ""
+              buildPhase = ''
+                echo "Compiling ${file}..."
+                horth compile --input ${file} --output out --format elf64
+              '';
 
-              echo "Compiling ${file}..."
-              horth compile --input ${file} --output out --format elf64
+              checkPhase = ''
+                echo "Pretty-printing ${file}.horth..."
+                horth pretty --input ${file} > pretty.horth
+                (diff ${file} pretty.horth) || (echo "Pretty:    FAIL" && exit 1)
+                echo "Pretty:    PASS"
+              '';
 
-              echo "Running compiled output..."
-              ./out > compiled.out
-              echo ""
-              (diff interpreted.out compiled.out) || (echo "Execution: FAIL" && exit 1)
-              echo "Execution: PASS"
+              installPhase = ''
+                cp out $out
+              '';
 
-              touch $out
-            '';
+              doInstallCheck = true;
+              installCheckPhase = ''
+                echo "Running interpreter on ${file}..."
+                horth run --input ${file} > interpreted.out
+
+                echo "Running compiled output..."
+                ./out > compiled.out
+
+                (diff interpreted.out compiled.out) || (echo "Execution: FAIL" && exit 1)
+                echo "Execution: PASS"
+              '';
+            };
         in {
-          hello = testHorthFile "hello" ./examples/hello.horth;
-          fac = testHorthFile "fac" ./examples/fac.horth;
-          mem = testHorthFile "mem" ./examples/mem.horth;
+          hello = testHorthFile "hello";
+          fac = testHorthFile "fac";
+          mem = testHorthFile "mem";
           combined =
             pkgs.runCommand "combined-test"
             {

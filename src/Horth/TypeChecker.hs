@@ -260,6 +260,8 @@ typeCheck ast@(a : as) =
           error "'jmp' shouldn't be in the AST"
         AstIntr (Jet _) _ -> do
           error "'jet' shouldn't be in the AST"
+        AstInclude _ _ -> do
+          error "'include's should be already resolved"
         AstIf ifAst pos _ -> do
           void $ popTypes (HBool :> Nil) pos
           case nonEmpty ifAst of

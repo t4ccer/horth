@@ -128,3 +128,4 @@ compile (getTypeCheckedAst -> (allAst : allAsts)) =
           addrAfterProc <- gets compilationStateNextAddr
           continueLinear restAst
         AstHole _ _ -> error "Hole in ast. This shouldn't happen after type checking"
+        AstInclude _ _ -> error "'include's should be already resolved"

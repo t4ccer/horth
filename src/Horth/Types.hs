@@ -98,6 +98,7 @@ data HType
 data Ast
   = AstPushLit Lit SourcePos
   | AstIntr Intrinsic SourcePos
+  | AstInclude FilePath SourcePos
   | AstName Text SourcePos
   | AstIf [Ast] SourcePos SourcePos
   | AstProc Text [HType] [HType] [Ast] SourcePos SourcePos

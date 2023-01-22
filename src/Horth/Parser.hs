@@ -55,6 +55,7 @@ horthP =
       , keywordP "write1" (AstIntr Write1)
       , keywordP "mem" (AstIntr Mem)
       , holeP
+      , includeP
       , nameP
       ]
 
@@ -151,6 +152,15 @@ keywordP keyword ast = do
   void $ string keyword
   whiteSpaceEndP
   pure $ ast pos
+
+includeP :: Parser Ast
+includeP = do
+  pos <- getSourcePos
+  void $ string "#include"
+  whiteSpaceP
+  path <- some notSpaceChar
+  whiteSpaceEndP
+  pure $ AstInclude path pos
 
 holeP :: Parser Ast
 holeP = do

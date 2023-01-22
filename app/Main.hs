@@ -2,6 +2,7 @@ module Main (main) where
 
 import Control.Monad (void)
 import Data.Text.IO qualified as Text
+import System.Directory (canonicalizePath)
 import System.Exit (ExitCode (ExitSuccess), exitFailure, exitWith)
 import System.FilePath (addExtension)
 import System.IO (stderr)
@@ -22,6 +23,7 @@ import Horth.Cli (
   prettyFormat,
  )
 import Horth.Compiler (compile)
+import Horth.Includes (resolveIncludes)
 import Horth.Interpreter (interpret)
 import Horth.Native.Elf64 (compileElf64)
 import Horth.Parser (parse)
@@ -29,12 +31,13 @@ import Horth.Pretty (prettyAst)
 import Horth.TypeChecker (TypeCheckedAst, typeCheck)
 
 getAst :: FilePath -> IO TypeCheckedAst
-getAst fp = do
+getAst fp' = do
+  fp <- canonicalizePath fp'
   sourceCode <- Text.readFile fp
   parsedAst <-
     case parse fp sourceCode of
       Left e -> error $ errorBundlePretty e
-      Right ast -> pure ast
+      Right ast -> resolveIncludes ast
   (ast, _) <-
     case typeCheck parsedAst of
       Left err -> do

@@ -21,6 +21,7 @@ astPos :: Ast -> SourcePos
 astPos (AstPushLit _ pos) = pos
 astPos (AstIntr _ pos) = pos
 astPos (AstName _ pos) = pos
+astPos (AstInclude _ pos) = pos
 astPos (AstIf _ pos _) = pos
 astPos (AstProc _ _ _ _ pos _) = pos
 astPos (AstHole _ pos) = pos
@@ -116,6 +117,8 @@ prettyAst ast =
               goForward endPos
               emit "end"
               modify (\s -> s {prettyAstStateAst = restAst})
-
+            AstInclude includeName _pos -> do
+              emit "#include "
+              emit $ Text.pack includeName
           modify (\s -> s {prettyAstStateAst = restAst})
           prettyAst'
