@@ -106,7 +106,7 @@ typeCheck ast@(a : as) = do
       stackLst <- gets ((take expectedLen) . typeCheckStack)
       let prettyOp = \case
             AstIntr intr _ -> prettyIntrinsic intr
-            AstIf _ _ _ -> "if"
+            AstIf _ _ _ _ -> "if"
             _ -> error "It shouldn't be here"
       let err =
             throwError $
@@ -317,31 +317,42 @@ typeCheck ast@(a : as) = do
           error "'jet' shouldn't be in the AST"
         AstInclude _ _ -> do
           error "'include's should be already resolved"
-        AstIf ifAst pos _ -> do
+        AstIf ifAst elseAst pos _ -> do
           void $ popTypes (HBool :> Nil) pos
-          case nonEmpty ifAst of
-            Nothing -> pure ()
+          stack <- gets typeCheckStack
+          labels <- gets typeCheckLabels
+          ifStack <- case nonEmpty ifAst of
+            Nothing -> pure stack
             Just ifAst' -> do
-              labels <- gets typeCheckLabels
-              preIfStack <- gets typeCheckStack
               local (const ifAst') go
               postIfStack <- gets typeCheckStack
-              unless (preIfStack == postIfStack) $
-                throwError $
-                  Text.pack $
-                    mconcat
-                      [ sourcePosPretty pos
-                      , ": ERROR: "
-                      , "'if' cannot change the type stack.\n"
-                      , "    Before 'if' branch:\n"
-                      , "        "
-                      , show preIfStack
-                      , "\n"
-                      , "    After if branch:\n"
-                      , "        "
-                      , show postIfStack
-                      ]
-              modify (\s -> s {typeCheckLabels = labels})
+              modify (\s -> s {typeCheckLabels = labels, typeCheckStack = stack})
+              pure postIfStack
+
+          elseStack <- case nonEmpty elseAst of
+            Nothing -> pure stack
+            Just elseAst' -> do
+              local (const elseAst') go
+              postElseStack <- gets typeCheckStack
+              modify (\s -> s {typeCheckLabels = labels, typeCheckStack = stack})
+              pure postElseStack
+
+          unless (ifStack == elseStack) $
+            throwError $
+              Text.pack $
+                mconcat
+                  [ sourcePosPretty pos
+                  , ": ERROR: "
+                  , "Both 'if' branches must have the same type.\n"
+                  , "    True 'if' branch:\n"
+                  , "        "
+                  , show ifStack
+                  , "\n"
+                  , "    False if branch:\n"
+                  , "        "
+                  , show elseStack
+                  ]
+          modify (\s -> s {typeCheckStack = elseStack})
           continueLinear restAst
         AstProc procName inStack outStack procAst pos _ -> do
           saveProcType procName inStack outStack

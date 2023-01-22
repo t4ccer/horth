@@ -40,7 +40,7 @@
 (define-derived-mode horth-mode prog-mode "horth"
   "Major Mode for editing horth source code."
   :syntax-table horth-mode--syntax-table
-  (font-lock-add-keywords nil '(("if\\|proc\\|end" . font-lock-keyword-face)))
+  (font-lock-add-keywords nil '(("if\\|else\\|proc\\|end" . font-lock-keyword-face)))
   (font-lock-add-keywords nil '(("\\(\s\\|^\\)\\([0-9]+\\)\\(\s\\|$\\)" 2 font-lock-constant-face)))
   (font-lock-add-keywords nil '(("\\(\s\\|(\\)\\(int\\|ptr\\|bool\\)" 2 font-lock-type-face)))
   (setq-local comment-start "// "))

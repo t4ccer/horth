@@ -97,15 +97,20 @@ ifP = do
 
   ifAst <- many horthP
 
+  else' <- optional $ string "else" >> whiteSpaceP
+  elseAst <- case else' of
+    Nothing -> pure []
+    Just _ -> many horthP
+
   endPos <- getSourcePos
   void $ string "end" >> whiteSpaceEndP
-  pure $ AstIf ifAst ifPos endPos
+  pure $ AstIf ifAst elseAst ifPos endPos
 
 nameP :: Parser Ast
 nameP = do
   namePos <- getSourcePos
   name <- Text.pack <$> some notSpaceChar
-  guard $ notElem name ["proc", "if", "end"]
+  guard $ notElem name ["proc", "if", "else", "end"]
   whiteSpaceEndP
   pure $ AstName name namePos
 

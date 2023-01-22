@@ -1,8 +1,12 @@
 #include elf64_syscalls
 
+proc neqi (int int -> bool)
+  eqi not
+end
+
 proc str_len (ptr -> int)
   proc str_len_go (ptr int -> ptr int)
-    dup read1 0 eqi not if
+    dup read1 0 neqi if
       1 add
       swap
       1 add
@@ -18,14 +22,5 @@ proc print_null_term_str (ptr -> )
 end
 
 proc print_bool (bool -> )
-  dup if
-    "true" print_null_term_str
-  end
-  not if
-    "false" print_null_term_str
-  end
-end
-
-proc neqi (int int -> bool)
-  eqi not
+  if "true" else "false" end print_null_term_str
 end

@@ -107,7 +107,7 @@ data Ast
   | AstIntr Intrinsic SourcePos
   | AstInclude FilePath SourcePos
   | AstName Text SourcePos
-  | AstIf [Ast] SourcePos SourcePos
+  | AstIf [Ast] [Ast] SourcePos SourcePos
   | AstProc Text [HType] [HType] [Ast] SourcePos SourcePos
   | AstHole Text SourcePos
   deriving stock (Show, Eq)

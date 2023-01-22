@@ -15,8 +15,7 @@ import Horth.Cli (
     compileOptsOutput
   ),
   ExeFormat (ExeFormatElf64),
-  Mode (ModeCompile, ModePretty),
-  PrettyOpts (prettyOptsInput),
+  Mode (ModeCompile),
   getMode,
   prettyFormat,
  )
@@ -24,7 +23,6 @@ import Horth.Compiler (compile)
 import Horth.Includes (resolveIncludes)
 import Horth.Native.Elf64 (compileElf64)
 import Horth.Parser (parse)
-import Horth.Pretty (prettyAst)
 import Horth.TypeChecker (TypeCheckedAst, typeCheck)
 
 getAst :: FilePath -> IO TypeCheckedAst
@@ -62,8 +60,3 @@ main = do
         >>= forwardExitCode
       runProcess (proc "ld" [addExtension opts.compileOptsOutput ".o", "-o", opts.compileOptsOutput])
         >>= forwardExitCode
-    ModePretty opts -> do
-      sourceCode <- Text.readFile opts.prettyOptsInput
-      case parse opts.prettyOptsInput sourceCode of
-        Left e -> error $ show e
-        Right ast -> Text.putStr $ prettyAst ast

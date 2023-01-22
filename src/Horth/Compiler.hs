@@ -98,16 +98,29 @@ compile (getTypeCheckedAst -> (allAst : allAsts)) =
         AstIntr intr _ -> do
           emit $ OpCodeIntr intr
           continueLinear restAst
-        AstIf ifAst _ _ -> mdo
+        AstIf ifAst elseAst _ _ -> mdo
           emit $ OpCodeIntr Not
           emit $ OpCodeIntr (Jet addrAfterIfBranch)
+
           case nonEmpty ifAst of
             Nothing -> pure ()
             Just ifAst' -> do
               labels <- gets compilationStateLabels
               local (\e -> e {compilationEnvAst = ifAst'}) compile'
               modify (\s -> s {compilationStateLabels = labels})
+              emit $ OpCodeIntr (Jmp addrAfterElseBranch)
+
           addrAfterIfBranch <- gets compilationStateNextAddr
+
+          case nonEmpty elseAst of
+            Nothing -> pure ()
+            Just elseAst' -> do
+              labels <- gets compilationStateLabels
+              local (\e -> e {compilationEnvAst = elseAst'}) compile'
+              modify (\s -> s {compilationStateLabels = labels})
+
+          addrAfterElseBranch <- gets compilationStateNextAddr
+
           continueLinear restAst
         AstName name _ -> mdo
           addr <- getProcAddr name
