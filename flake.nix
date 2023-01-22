@@ -136,6 +136,7 @@
           hello = testHorthFile "hello";
           fac = testHorthFile "fac";
           mem = testHorthFile "mem";
+          echo = testHorthFile "echo";
           combined =
             pkgs.runCommand "combined-test"
             {

@@ -73,9 +73,17 @@ data Intrinsic
     PrintI
   | -- | Read one byte from a ptr
     Read1
+  | Read4
   | Write1
   | Mem
+  | SysCall0
+  | SysCall1
+  | SysCall2
   | SysCall3
+  | SysCall4
+  | SysCall5
+  | SysCall6
+  | UnsafeMkPtr
   deriving stock (Show, Eq)
 
 prettyIntrinsic :: Intrinsic -> Text

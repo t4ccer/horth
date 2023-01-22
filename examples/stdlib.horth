@@ -1,3 +1,5 @@
+#include elf64_syscalls
+
 proc str_len (ptr -> int)
   proc str_len_go (ptr int -> ptr int)
     dup read1 0 eqi not if
@@ -11,10 +13,6 @@ proc str_len (ptr -> int)
   0 swap str_len_go pop
 end
 
-proc sys_write (int ptr int -> int)
-  1 syscall3
-end
-
 proc print_null_term_str (ptr -> )
   dup str_len swap 1 sys_write pop
 end
@@ -26,4 +24,8 @@ proc print_bool (bool -> )
   not if
     "false" print_null_term_str
   end
+end
+
+proc neqi (int int -> bool)
+  eqi not
 end

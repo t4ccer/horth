@@ -80,10 +80,14 @@ stacksEqual = stacksEqual' mempty
 
 typeCheck :: [Ast] -> Either TypeError (TypeCheckedAst, [HType])
 typeCheck [] = pure (TypeCheckedAst [], [])
-typeCheck ast@(a : as) =
+typeCheck ast@(a : as) = do
+  let initStack =
+        [ HInt -- argc
+        , HPtr -- argv
+        ]
   fmap (\st -> (TypeCheckedAst ast, typeCheckStack st))
     . flip runReaderT (a :| as)
-    . flip execStateT (TypeCheckState [] [] 0)
+    . flip execStateT (TypeCheckState initStack [] 0)
     . runTypeCheckMachine
     $ go
   where
@@ -244,18 +248,68 @@ typeCheck ast@(a : as) =
           void $ popTypes (HPtr :> Nil) pos
           pushType HInt
           continueLinear restAst
+        AstIntr Read4 pos -> do
+          void $ popTypes (HPtr :> Nil) pos
+          pushType HInt
+          continueLinear restAst
         AstIntr Write1 pos -> do
           void $ popTypes (HPtr :> HInt :> Nil) pos
           continueLinear restAst
         AstIntr Mem _ -> do
           pushType HPtr
           continueLinear restAst
-        AstIntr SysCall3 pos -> do
-          b <- generateTyVar' [HInt, HPtr]
-          c <- generateTyVar' [HInt, HPtr]
-          d <- generateTyVar' [HInt, HPtr]
-          void $ popTypes (HInt :> b :> c :> d :> Nil) pos
+        AstIntr SysCall0 pos -> do
+          void $ popTypes (HInt :> Nil) pos
           pushType HInt
+          continueLinear restAst
+        AstIntr SysCall1 pos -> do
+          rdi <- generateTyVar' [HInt, HPtr]
+          void $ popTypes (HInt :> rdi :> Nil) pos
+          pushType HInt
+          continueLinear restAst
+        AstIntr SysCall2 pos -> do
+          rdi <- generateTyVar' [HInt, HPtr]
+          rsi <- generateTyVar' [HInt, HPtr]
+          void $ popTypes (HInt :> rdi :> rsi :> Nil) pos
+          pushType HInt
+          continueLinear restAst
+        AstIntr SysCall3 pos -> do
+          rdi <- generateTyVar' [HInt, HPtr]
+          rsi <- generateTyVar' [HInt, HPtr]
+          rdx <- generateTyVar' [HInt, HPtr]
+          void $ popTypes (HInt :> rdi :> rsi :> rdx :> Nil) pos
+          pushType HInt
+          continueLinear restAst
+        AstIntr SysCall4 pos -> do
+          rdi <- generateTyVar' [HInt, HPtr]
+          rsi <- generateTyVar' [HInt, HPtr]
+          rdx <- generateTyVar' [HInt, HPtr]
+          r10 <- generateTyVar' [HInt, HPtr]
+          void $ popTypes (HInt :> rdi :> rsi :> rdx :> r10 :> Nil) pos
+          pushType HInt
+          continueLinear restAst
+        AstIntr SysCall5 pos -> do
+          rdi <- generateTyVar' [HInt, HPtr]
+          rsi <- generateTyVar' [HInt, HPtr]
+          rdx <- generateTyVar' [HInt, HPtr]
+          r10 <- generateTyVar' [HInt, HPtr]
+          r8 <- generateTyVar' [HInt, HPtr]
+          void $ popTypes (HInt :> rdi :> rsi :> rdx :> r10 :> r8 :> Nil) pos
+          pushType HInt
+          continueLinear restAst
+        AstIntr SysCall6 pos -> do
+          rdi <- generateTyVar' [HInt, HPtr]
+          rsi <- generateTyVar' [HInt, HPtr]
+          rdx <- generateTyVar' [HInt, HPtr]
+          r10 <- generateTyVar' [HInt, HPtr]
+          r8 <- generateTyVar' [HInt, HPtr]
+          r9 <- generateTyVar' [HInt, HPtr]
+          void $ popTypes (HInt :> rdi :> rsi :> rdx :> r10 :> r8 :> r9 :> Nil) pos
+          pushType HInt
+          continueLinear restAst
+        AstIntr UnsafeMkPtr pos -> do
+          void $ popTypes (HInt :> Nil) pos
+          pushType HPtr
           continueLinear restAst
         AstIntr (Jmp _) _ -> do
           error "'jmp' shouldn't be in the AST"

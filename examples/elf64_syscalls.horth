@@ -1,0 +1,15 @@
+proc sys_read (int ptr int -> int)
+  0 syscall3
+end
+
+proc sys_write (int ptr int -> int)
+  1 syscall3
+end
+
+proc sys_open (ptr int int -> int)
+  2 syscall3
+end
+
+proc sys_close (int -> int)
+  3 syscall1
+end

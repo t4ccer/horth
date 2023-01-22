@@ -116,12 +116,31 @@ compileElf64 code =
               emitInstr "mov" ["r12", "[r13]"]
               emitInstr "and" ["r12", "0xff"]
               emitInstr "push" ["r12"]
+            OpCodeIntr Read4 -> do
+              emitInstr "pop " ["r13"]
+              emitInstr "mov" ["r12", "[r13]"]
+              emitInstr "push" ["r12"]
             OpCodeIntr Write1 -> do
               emitInstr "pop" ["r13"]
               emitInstr "pop" ["r12"]
               emitInstr "mov" ["[r13]", "r12b"]
             OpCodeIntr Mem -> do
               emitInstr "push" ["mem"]
+            OpCodeIntr SysCall0 -> do
+              emitInstr "pop" ["rax"]
+              emitInstr "syscall" []
+              emitInstr "push" ["rax"]
+            OpCodeIntr SysCall1 -> do
+              emitInstr "pop" ["rax"]
+              emitInstr "pop" ["rdi"]
+              emitInstr "syscall" []
+              emitInstr "push" ["rax"]
+            OpCodeIntr SysCall2 -> do
+              emitInstr "pop" ["rax"]
+              emitInstr "pop" ["rdi"]
+              emitInstr "pop" ["rsi"]
+              emitInstr "syscall" []
+              emitInstr "push" ["rax"]
             OpCodeIntr SysCall3 -> do
               emitInstr "pop" ["rax"]
               emitInstr "pop" ["rdi"]
@@ -129,6 +148,34 @@ compileElf64 code =
               emitInstr "pop" ["rdx"]
               emitInstr "syscall" []
               emitInstr "push" ["rax"]
+            OpCodeIntr SysCall4 -> do
+              emitInstr "pop" ["rax"]
+              emitInstr "pop" ["rdi"]
+              emitInstr "pop" ["rsi"]
+              emitInstr "pop" ["rdx"]
+              emitInstr "pop" ["r10"]
+              emitInstr "syscall" []
+              emitInstr "push" ["rax"]
+            OpCodeIntr SysCall5 -> do
+              emitInstr "pop" ["rax"]
+              emitInstr "pop" ["rdi"]
+              emitInstr "pop" ["rsi"]
+              emitInstr "pop" ["rdx"]
+              emitInstr "pop" ["r10"]
+              emitInstr "pop" ["r8"]
+              emitInstr "syscall" []
+              emitInstr "push" ["rax"]
+            OpCodeIntr SysCall6 -> do
+              emitInstr "pop" ["rax"]
+              emitInstr "pop" ["rdi"]
+              emitInstr "pop" ["rsi"]
+              emitInstr "pop" ["rdx"]
+              emitInstr "pop" ["r10"]
+              emitInstr "pop" ["r8"]
+              emitInstr "pop" ["r9"]
+              emitInstr "syscall" []
+              emitInstr "push" ["rax"]
+            OpCodeIntr UnsafeMkPtr -> pure ()
             OpCodePushToCallStack (Addr retAddr) (Addr jmpAddr) -> do
               emitInstr "add" ["r15", "8"]
               emitInstr "mov" ["qword [r15]", "ip_" <> Text.pack (show retAddr)]
@@ -240,3 +287,7 @@ prologue = do
   emitInstr "ret" []
   emitLabel "_start"
   emitInstr "mov" ["r15", "horthCallStack"]
+
+  emitInstr "pop" ["r14"]
+  emitInstr "push qword" ["rsp"]
+  emitInstr "push" ["r14"]

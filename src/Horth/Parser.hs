@@ -51,9 +51,16 @@ horthP =
       , keywordP "over" (AstIntr Over)
       , keywordP "printi" (AstIntr PrintI)
       , keywordP "read1" (AstIntr Read1)
+      , keywordP "read4" (AstIntr Read4)
       , keywordP "write1" (AstIntr Write1)
       , keywordP "mem" (AstIntr Mem)
+      , keywordP "syscall1" (AstIntr SysCall1)
+      , keywordP "syscall2" (AstIntr SysCall2)
       , keywordP "syscall3" (AstIntr SysCall3)
+      , keywordP "syscall4" (AstIntr SysCall4)
+      , keywordP "syscall5" (AstIntr SysCall5)
+      , keywordP "syscall6" (AstIntr SysCall6)
+      , keywordP "unsafe_mk_ptr" (AstIntr UnsafeMkPtr)
       , holeP
       , includeP
       , nameP

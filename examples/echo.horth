@@ -1,0 +1,17 @@
+#include stdlib
+
+proc echo (int ptr -> int ptr)
+  1 sub
+  dup 0 neqi if
+    swap
+    8 add
+    dup read4 unsafe_mk_ptr print_null_term_str
+    swap
+    dup 1 neqi if
+      " " print_null_term_str
+    end
+    echo
+  end
+end
+
+echo
