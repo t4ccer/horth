@@ -108,6 +108,6 @@ data Ast
   | AstInclude FilePath SourcePos
   | AstName Text SourcePos
   | AstIf [Ast] [Ast] SourcePos SourcePos
-  | AstProc Text [HType] [HType] [Ast] SourcePos SourcePos
+  | AstProc Bool Text [HType] [HType] [Ast] SourcePos
   | AstHole Text SourcePos
   deriving stock (Show, Eq)

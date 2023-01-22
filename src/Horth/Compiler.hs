@@ -21,6 +21,7 @@ data CompilationState = CompilationState
   { compilationStateEmited :: [OpCode]
   , compilationStateNextAddr :: Addr
   , compilationStateLabels :: [(Text, Addr)]
+  , compilationStateMacros :: [(Text, [Ast])]
   }
   deriving stock (Show, Eq)
 
@@ -45,7 +46,7 @@ compile (getTypeCheckedAst -> (allAst : allAsts)) =
     . reverse
     . compilationStateEmited
     . flip runReader (CompilationEnv (allAst :| allAsts))
-    . flip execStateT (CompilationState [] 0 [])
+    . flip execStateT (CompilationState [] 0 [] [])
     . runCompilationM
     $ compile'
   where
@@ -64,19 +65,10 @@ compile (getTypeCheckedAst -> (allAst : allAsts)) =
     continueLinear [] = pure ()
     continueLinear (a : as) = local (\e -> e {compilationEnvAst = a :| as}) compile'
 
-    -- TODO: Location
-    getProcAddr :: Text -> CompilationM Addr
+    getProcAddr :: Text -> CompilationM (Maybe Addr)
     getProcAddr name = do
       labels <- gets compilationStateLabels
-      case lookup name labels of
-        Nothing ->
-          error $
-            mconcat
-              [ "Unknown procedure: "
-              , show name
-              , ".\nThis shouldn't happen after type checking"
-              ]
-        Just addr -> pure addr
+      pure $ lookup name labels
 
     saveProcAddr :: Text -> Addr -> CompilationM ()
     saveProcAddr name addr =
@@ -86,6 +78,20 @@ compile (getTypeCheckedAst -> (allAst : allAsts)) =
               { compilationStateLabels = (name, addr) : compilationStateLabels s
               }
         )
+
+    registerMacro :: Text -> [Ast] -> CompilationM ()
+    registerMacro name asts =
+      modify
+        ( \s ->
+            s
+              { compilationStateMacros = (name, asts) : compilationStateMacros s
+              }
+        )
+
+    getMacro :: Text -> CompilationM (Maybe [Ast])
+    getMacro name = do
+      macros <- gets compilationStateMacros
+      pure $ lookup name macros
 
     -- FIXME: proc must be defined before call
     compile' :: CompilationM ()
@@ -122,12 +128,19 @@ compile (getTypeCheckedAst -> (allAst : allAsts)) =
           addrAfterElseBranch <- gets compilationStateNextAddr
 
           continueLinear restAst
-        AstName name _ -> mdo
-          addr <- getProcAddr name
-          emit $ OpCodePushToCallStack callStackRetAddr addr
-          callStackRetAddr <- gets compilationStateNextAddr
-          continueLinear restAst
-        AstProc name _inType _outType procAst _ _ -> mdo
+        AstName name _ -> do
+          procAddr <- getProcAddr name
+          macroAst <- getMacro name
+          case (procAddr, macroAst) of
+            (Just addr, _) -> mdo
+              emit $ OpCodePushToCallStack callStackRetAddr addr
+              callStackRetAddr <- gets compilationStateNextAddr
+              continueLinear restAst
+            (_, Just macroAst) -> do
+              continueLinear (macroAst <> restAst)
+            (Nothing, Nothing) -> do
+              error "proc/macro not defined"
+        AstProc False name _inType _outType procAst _ -> mdo
           emit $ OpCodeIntr (Jmp addrAfterProc)
           procStartAddr <- gets compilationStateNextAddr
           saveProcAddr name procStartAddr
@@ -139,6 +152,9 @@ compile (getTypeCheckedAst -> (allAst : allAsts)) =
               modify (\s -> s {compilationStateLabels = labels})
           emit OpCodePopJmpFromCallStack
           addrAfterProc <- gets compilationStateNextAddr
+          continueLinear restAst
+        AstProc True macroName _inType _outType macroAst _pos -> do
+          registerMacro macroName macroAst
           continueLinear restAst
         AstHole _ _ -> error "Hole in ast. This shouldn't happen after type checking"
         AstInclude _ _ -> error "'include's should be already resolved"

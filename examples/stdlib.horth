@@ -1,6 +1,6 @@
 #include elf64_syscalls
 
-proc neqi (int int -> bool)
+macro neqi (int int -> bool)
   eqi not
 end
 
@@ -21,10 +21,14 @@ proc print_str_len (ptr int -> )
  1 sys_write pop
 end
 
-proc print_str (ptr -> )
+macro print_str (ptr -> )
   dup str_len swap print_str_len
 end
 
 proc print_bool (bool -> )
   if "true" else "false" end print_str
+end
+
+macro get_argv (int ptr -> ptr)
+  8 mul add read4 unsafe_mk_ptr
 end

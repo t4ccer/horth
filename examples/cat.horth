@@ -5,8 +5,7 @@ proc print_from_fd (int -> )
   16 swap
   mem swap
   sys_read
-  dup
-  mem print_str_len
+  dup mem print_str_len
   16 eqi if
     print_from_fd
   else
@@ -15,13 +14,19 @@ proc print_from_fd (int -> )
 end
 
 2 eqi if
-  8 add read4 unsafe_mk_ptr
+  1 get_argv
   0 swap
   0 swap
   sys_open
   dup
-  print_from_fd
-  sys_close drop
+  18446744073709551614 eqi if
+    drop
+    "cat: No such file" print_str
+  else
+    dup
+    print_from_fd
+    sys_close drop
+  end
 else
   "Usage: cat <file>" print_str drop
 end

@@ -354,8 +354,9 @@ typeCheck ast@(a : as) = do
                   ]
           modify (\s -> s {typeCheckStack = elseStack})
           continueLinear restAst
-        AstProc procName inStack outStack procAst pos _ -> do
-          saveProcType procName inStack outStack
+        AstProc isInline procName inStack outStack procAst pos -> do
+          unless isInline $
+            saveProcType procName inStack outStack
           preProcStack <- gets typeCheckStack
 
           modify (\s -> s {typeCheckStack = inStack})
@@ -385,6 +386,8 @@ typeCheck ast@(a : as) = do
                   ]
 
           modify (\s -> s {typeCheckStack = preProcStack})
+          when isInline $
+            saveProcType procName inStack outStack
           continueLinear restAst
         AstName name pos -> do
           (inType, outType) <- getProcType name pos

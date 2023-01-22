@@ -4,6 +4,7 @@ import Control.Applicative (asum)
 import Control.Monad (guard, void)
 import Data.ByteString.Char8 qualified as Char8
 import Data.Char (isSpace)
+import Data.Functor (($>))
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Text.Megaparsec
@@ -69,7 +70,7 @@ horthP =
 procP :: Parser Ast
 procP = do
   procPos <- getSourcePos
-  void $ string "proc"
+  constr <- (string "proc" $> AstProc False) <|> (string "macro" $> AstProc True)
   whiteSpaceP
   procName <- Text.pack <$> some notSpaceChar
   whiteSpaceP
@@ -85,10 +86,9 @@ procP = do
 
   procAst <- many horthP
 
-  endPos <- getSourcePos
   void $ string "end"
   whiteSpaceEndP
-  pure $ AstProc procName inTy outTy procAst procPos endPos
+  pure $ constr procName inTy outTy procAst procPos
 
 ifP :: Parser Ast
 ifP = do
@@ -110,7 +110,7 @@ nameP :: Parser Ast
 nameP = do
   namePos <- getSourcePos
   name <- Text.pack <$> some notSpaceChar
-  guard $ notElem name ["proc", "if", "else", "end"]
+  guard $ notElem name ["proc", "macro", "if", "else", "end"]
   whiteSpaceEndP
   pure $ AstName name namePos
 
