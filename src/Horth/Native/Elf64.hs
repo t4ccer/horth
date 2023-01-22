@@ -111,9 +111,6 @@ compileElf64 code =
             OpCodeIntr PrintI -> do
               emitInstr "pop" ["rdi"]
               emitInstr "call" ["print_uint"]
-            OpCodeIntr PrintB -> do
-              -- TODO
-              error "PrintB: not implemented"
             OpCodeIntr Read1 -> do
               emitInstr "pop " ["r13"]
               emitInstr "mov" ["r12", "[r13]"]
@@ -131,6 +128,7 @@ compileElf64 code =
               emitInstr "pop" ["rsi"]
               emitInstr "pop" ["rdx"]
               emitInstr "syscall" []
+              emitInstr "push" ["rax"]
             OpCodePushToCallStack (Addr retAddr) (Addr jmpAddr) -> do
               emitInstr "add" ["r15", "8"]
               emitInstr "mov" ["qword [r15]", "ip_" <> Text.pack (show retAddr)]

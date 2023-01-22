@@ -1,6 +1,5 @@
 module Main (main) where
 
-import Control.Monad (void)
 import Data.Text.IO qualified as Text
 import System.Directory (canonicalizePath)
 import System.Exit (ExitCode (ExitSuccess), exitFailure, exitWith)
@@ -16,15 +15,13 @@ import Horth.Cli (
     compileOptsOutput
   ),
   ExeFormat (ExeFormatElf64),
-  Mode (ModeCompile, ModePretty, ModeRun),
+  Mode (ModeCompile, ModePretty),
   PrettyOpts (prettyOptsInput),
-  RunOpts (runOptsInput),
   getMode,
   prettyFormat,
  )
 import Horth.Compiler (compile)
 import Horth.Includes (resolveIncludes)
-import Horth.Interpreter (interpret)
 import Horth.Native.Elf64 (compileElf64)
 import Horth.Parser (parse)
 import Horth.Pretty (prettyAst)
@@ -65,9 +62,6 @@ main = do
         >>= forwardExitCode
       runProcess (proc "ld" [addExtension opts.compileOptsOutput ".o", "-o", opts.compileOptsOutput])
         >>= forwardExitCode
-    ModeRun opts -> do
-      ast <- getAst opts.runOptsInput
-      void $ interpret $ compile ast
     ModePretty opts -> do
       sourceCode <- Text.readFile opts.prettyOptsInput
       case parse opts.prettyOptsInput sourceCode of

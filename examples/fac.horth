@@ -1,3 +1,5 @@
+#include stdlib
+
 proc fac (int -> int)
   proc fac_go (int int -> int int)
     dup 0 eqi not
@@ -14,4 +16,5 @@ proc square (int -> int)
   dup mul
 end
 
-2 square fac printi
+3 square fac dup printi
+"Is (3^2)! == 362880: " print_null_term_str 362880 eqi print_bool

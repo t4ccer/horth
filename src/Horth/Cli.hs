@@ -1,7 +1,6 @@
 module Horth.Cli (
   Mode (..),
   CompileOpts (..),
-  RunOpts (..),
   PrettyOpts (..),
   ExeFormat (..),
   getMode,
@@ -35,7 +34,6 @@ import Options.Applicative (
 
 data Mode
   = ModeCompile CompileOpts
-  | ModeRun RunOpts
   | ModePretty PrettyOpts
   deriving stock (Show, Eq)
 
@@ -51,11 +49,6 @@ data CompileOpts = CompileOpts
 data ExeFormat = ExeFormatElf64
   deriving stock (Show, Eq)
 
-data RunOpts = RunOpts
-  { runOptsInput :: FilePath
-  }
-  deriving stock (Show, Eq)
-
 data PrettyOpts = PrettyOpts
   { prettyOptsInput :: FilePath
   }
@@ -65,7 +58,7 @@ getMode :: IO Mode
 getMode = customExecParser (prefs showHelpOnError) $ info (helper <*> modeP) fullDesc
 
 modeP :: Parser Mode
-modeP = subparser (compileP <> runP <> prettyP)
+modeP = subparser (compileP <> prettyP)
 
 compileP :: Mod CommandFields Mode
 compileP = command "compile" (ModeCompile <$> info compileOptsP (progDesc "Compile a horth program"))
@@ -101,16 +94,8 @@ prettyFormat format =
 formats :: [(String, ExeFormat)]
 formats = [("elf64", ExeFormatElf64)]
 
-runP :: Mod CommandFields Mode
-runP = command "run" (ModeRun <$> info runOptsP (progDesc "Interpret a horth program"))
-
 prettyP :: Mod CommandFields Mode
 prettyP = command "pretty" (ModePretty <$> info prettyOptsP (progDesc "Pretty print a horth program"))
-
-runOptsP :: Parser RunOpts
-runOptsP =
-  RunOpts
-    <$> strOption (long "input" <> short 'i' <> metavar "FILE" <> help "Input file")
 
 prettyOptsP :: Parser PrettyOpts
 prettyOptsP =

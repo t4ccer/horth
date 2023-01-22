@@ -71,7 +71,6 @@ data Intrinsic
     Over
   | -- | Print the top element of the stack
     PrintI
-  | PrintB
   | -- | Read one byte from a ptr
     Read1
   | Write1
