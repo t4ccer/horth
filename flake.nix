@@ -122,18 +122,13 @@
               '';
 
               installPhase = ''
-                cp out $out
+                mkdir -p $out/bin
+                cp out $out/bin/${fname}
               '';
 
               doInstallCheck = true;
               installCheckPhase = ''
-                echo "Running interpreter on ${file}..."
-                horth run --input ${file} > interpreted.out
-
-                echo "Running compiled output..."
-                ./out > compiled.out
-
-                (diff interpreted.out compiled.out) || (echo "Execution: FAIL" && exit 1)
+                ./out
                 echo "Execution: PASS"
               '';
             };

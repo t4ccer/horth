@@ -7,7 +7,6 @@ import Control.Monad.State (MonadState, StateT, evalStateT, gets, modify)
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as BS
 import Data.Int (Int64)
-import Data.Kind (Type)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Vector qualified as V
@@ -179,14 +178,6 @@ interpret code =
           LitBool a <- pop
           liftIO $ print a
           incrementPC
-        OpCodeIntr PrintS -> do
-          LitInt len <- pop
-          LitPtr ptr <- pop
-          mem <- gets memory
-          let strMem = UMV.slice (fromIntegral ptr) (fromIntegral len) mem
-          str <- liftIO $ mvecToList strMem
-          liftIO $ BS.putStr $ BS.pack str
-          incrementPC
         OpCodeIntr Read1 -> do
           LitPtr ptr <- pop
           mem <- gets memory
@@ -204,6 +195,8 @@ interpret code =
           addr <- gets notAllocated
           push $ LitPtr addr
           incrementPC
+        OpCodeIntr SysCall3 -> do
+          error "OpCodeIntr SysCall3: Not supported"
         OpCodePushToCallStack retAddr callAddr -> do
           modify (\s -> s {callStack = retAddr : callStack s})
           modify (\s -> s {pc = callAddr})
@@ -213,6 +206,3 @@ interpret code =
           modify (\s -> s {pc = addr})
       done <- isDone
       if done then gets stack else interpret'
-
-mvecToList :: forall (a :: Type). UMV.Unbox a => UMV.IOVector a -> IO [a]
-mvecToList mvec = reverse <$> UMV.foldl' (\acc i -> i : acc) [] mvec

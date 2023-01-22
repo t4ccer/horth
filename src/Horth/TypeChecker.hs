@@ -243,9 +243,6 @@ typeCheck ast@(a : as) =
         AstIntr PrintB pos -> do
           void $ popTypes (HBool :> Nil) pos
           continueLinear restAst
-        AstIntr PrintS pos -> do
-          void $ popTypes (HInt :> HPtr :> Nil) pos
-          continueLinear restAst
         AstIntr Read1 pos -> do
           void $ popTypes (HPtr :> Nil) pos
           pushType HInt
@@ -255,6 +252,12 @@ typeCheck ast@(a : as) =
           continueLinear restAst
         AstIntr Mem _ -> do
           pushType HPtr
+          continueLinear restAst
+        AstIntr SysCall3 pos -> do
+          b <- generateTyVar' [HInt, HPtr]
+          c <- generateTyVar' [HInt, HPtr]
+          d <- generateTyVar' [HInt, HPtr]
+          void $ popTypes (HInt :> b :> c :> d :> Nil) pos
           continueLinear restAst
         AstIntr (Jmp _) _ -> do
           error "'jmp' shouldn't be in the AST"

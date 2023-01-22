@@ -72,11 +72,11 @@ data Intrinsic
   | -- | Print the top element of the stack
     PrintI
   | PrintB
-  | PrintS
   | -- | Read one byte from a ptr
     Read1
   | Write1
   | Mem
+  | SysCall3
   deriving stock (Show, Eq)
 
 prettyIntrinsic :: Intrinsic -> Text
