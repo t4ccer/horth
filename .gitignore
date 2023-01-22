@@ -4,3 +4,20 @@ result
 .direnv
 /dist-newstyle/
 /.pre-commit-config.yaml
+
+# Build outputs
+cat
+cat.asm
+cat.o
+echo
+echo.asm
+echo.o
+fac
+fac.asm
+fac.o
+hello
+hello.asm
+hello.o
+mem
+mem.asm
+mem.o

@@ -246,8 +246,6 @@ prologue = do
   emitGlobal "_start"
   emitSection ".data"
   emitVerbatim "        nl db 0x0a"
-  emitVerbatim "        True db \"True\", 0x0a"
-  emitVerbatim "        False db \"False\", 0x0a"
   mapM_ emitStr strings
   emitSection ".bss"
   -- +1 is for null byte. TODO: Escape strings
