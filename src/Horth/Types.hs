@@ -6,6 +6,7 @@ import Data.ByteString (ByteString)
 import Data.Int (Int64)
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Data.Word (Word64)
 import Text.Megaparsec.Pos (SourcePos)
 
 -- * Bare VM
@@ -27,7 +28,7 @@ data Lit
   = LitInt Int64
   | LitBool Bool
   | LitStr ByteString
-  | LitPtr Int64
+  | LitPtr Word64
   deriving stock (Show, Eq)
 
 prettyLit :: Lit -> Text
@@ -37,7 +38,7 @@ prettyLit (LitBool False) = "false"
 prettyLit (LitStr str) = Text.pack $ show str
 prettyLit (LitPtr ptr) = "*" <> Text.pack (show ptr)
 
-newtype Addr = Addr {getAddr :: Int}
+newtype Addr = Addr {getAddr :: Word64}
   deriving stock (Show, Eq, Ord)
   deriving newtype (Num)
 

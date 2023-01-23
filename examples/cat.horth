@@ -19,7 +19,7 @@ end
   0 swap
   sys_open
   dup
-  18446744073709551614 eqi if
+  -2 eqi if
     drop
     "cat: No such file" print_str
   else

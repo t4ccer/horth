@@ -9,6 +9,7 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Text.Megaparsec
 import Text.Megaparsec.Char
+import Text.Megaparsec.Char.Lexer (decimal, signed)
 
 import Horth.Types
 
@@ -137,9 +138,9 @@ whiteSpaceEndP = whiteSpaceP <|> eof
 numLitP :: Parser Ast
 numLitP = do
   numPos <- getSourcePos
-  num <- some digitChar
+  num <- signed (pure ()) decimal
   whiteSpaceEndP
-  return $ AstPushLit (LitInt (read num)) numPos
+  return $ AstPushLit (LitInt num) numPos
 
 boolLitP :: Parser Ast
 boolLitP = do

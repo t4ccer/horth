@@ -167,9 +167,8 @@ typeCheck ast@(a : as) = do
               mconcat
                 [ sourcePosPretty pos
                 , ": ERROR: "
-                , "Unknown procedure call: '"
-                , show name
-                , "'"
+                , "Unknown procedure call: "
+                , Text.unpack name
                 ]
         Just tys -> pure tys
 
