@@ -3,7 +3,7 @@ module Horth.Parser (horthParser, Horth.Parser.parse) where
 import Control.Applicative (asum)
 import Control.Monad (guard, void)
 import Data.ByteString.Char8 qualified as Char8
-import Data.Char (isSpace)
+import Data.Char (isSpace, ord)
 import Data.Functor (($>))
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -39,6 +39,7 @@ horthP =
       , ifP
       , numLitP
       , boolLitP
+      , charP
       , strPtrLitP
       , keywordP "add" (AstIntr Add)
       , keywordP "sub" (AstIntr Sub)
@@ -157,6 +158,15 @@ strPtrLitP = do
   void $ char '"'
   whiteSpaceEndP
   return $ AstPushLit (LitStr $ Char8.pack str) strPos
+
+charP :: Parser Ast
+charP = do
+  charPos <- getSourcePos
+  void $ char '\''
+  c <- anySingle
+  void $ char '\''
+  whiteSpaceEndP
+  return $ AstPushLit (LitInt $ fromIntegral $ ord c) charPos
 
 keywordP :: Show ast => Text -> (SourcePos -> ast) -> Parser ast
 keywordP keyword ast = do

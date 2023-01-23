@@ -1,7 +1,7 @@
 #include stdlib
 
 "XXX - DEF"
-dup       65 swap write1
-dup 1 add 66 swap write1
-dup 2 add 67 swap write1
+dup       'A' swap write1
+dup 1 add 'B' swap write1
+dup 2 add 'C' swap write1
 print_str
