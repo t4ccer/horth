@@ -16,5 +16,5 @@ proc square (int -> int)
   dup mul
 end
 
-3 square fac dup printi
+3 square fac dup print_uint
 "Is (3^2)! == 362880: " print_str 362880 eqi print_bool

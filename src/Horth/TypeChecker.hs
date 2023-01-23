@@ -5,7 +5,9 @@ import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.Reader (MonadReader, ReaderT, ask, local, runReaderT)
 import Control.Monad.State (MonadState, StateT, execStateT, gets, modify)
 import Data.Kind (Type)
+import Data.List (intercalate, nub)
 import Data.List.NonEmpty (NonEmpty ((:|)), nonEmpty)
+import Data.Maybe (fromMaybe, mapMaybe)
 import Data.String (fromString)
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -119,10 +121,10 @@ typeCheck ast@(a : as) = do
                   , "'\n"
                   , "    Expected:\n"
                   , "        "
-                  , show $ vecToList t
+                  , prettyStack $ vecToList t
                   , "\n    Got:\n"
                   , "        "
-                  , show stackLst
+                  , prettyStack stackLst
                   ]
       when (length stackLst /= expectedLen) err
       -- 'vecFromList' is safe here because we checked the length of the list
@@ -240,8 +242,14 @@ typeCheck ast@(a : as) = do
           pushType a'
           pushType b'
           continueLinear restAst
-        AstIntr PrintI pos -> do
-          void $ popTypes (HInt :> Nil) pos
+        AstIntr Rot pos -> do
+          a <- generateTyVar
+          b <- generateTyVar
+          c <- generateTyVar
+          (a' :> b' :> c' :> Nil) <- popTypes (a :> b :> c :> Nil) pos
+          pushType a'
+          pushType c'
+          pushType b'
           continueLinear restAst
         AstIntr Read1 pos -> do
           void $ popTypes (HPtr :> Nil) pos
@@ -345,11 +353,11 @@ typeCheck ast@(a : as) = do
                   , "Both 'if' branches must have the same type.\n"
                   , "    True 'if' branch:\n"
                   , "        "
-                  , show ifStack
+                  , prettyStack ifStack
                   , "\n"
                   , "    False if branch:\n"
                   , "        "
-                  , show elseStack
+                  , prettyStack elseStack
                   ]
           modify (\s -> s {typeCheckStack = elseStack})
           continueLinear restAst
@@ -377,11 +385,11 @@ typeCheck ast@(a : as) = do
                   , "' type missmatch.\n"
                   , "    Procedure declared output type to be:\n"
                   , "        "
-                  , show outStack
+                  , prettyStack outStack
                   , "\n"
                   , "    But is:\n"
                   , "        "
-                  , show postProcStack
+                  , prettyStack postProcStack
                   ]
 
           modify (\s -> s {typeCheckStack = preProcStack})
@@ -391,6 +399,7 @@ typeCheck ast@(a : as) = do
         AstName name pos -> do
           (inType, outType) <- getProcType name pos
           stackTop <- gets ((take (length inType)) . typeCheckStack)
+          -- FIXME: Supoprt type variables in 'inType'
           unless (stackTop == inType) $
             throwError $
               Text.pack $
@@ -400,9 +409,9 @@ typeCheck ast@(a : as) = do
                   , Text.unpack name
                   , "' call type missmatch.\n"
                   , "    To call the procedure, stack top is expected: "
-                  , show inType
+                  , prettyStack inType
                   , ", got: "
-                  , show stackTop
+                  , prettyStack stackTop
                   ]
           modify (\s -> s {typeCheckStack = drop (length inType) (typeCheckStack s)})
           modify (\s -> s {typeCheckStack = outType ++ typeCheckStack s})
@@ -418,5 +427,39 @@ typeCheck ast@(a : as) = do
                 , "'\n"
                 , "    Stack has type:\n"
                 , "        "
-                , show currStack
+                , prettyStack currStack
                 ]
+
+prettyStack :: [HType] -> String
+prettyStack [] = "<empty>"
+prettyStack stack = unwords $ map prettyTy stack
+  where
+    matchTyVar :: HType -> Maybe (Integer, (Maybe [HType]))
+    matchTyVar (HTypeVar idx constraints) = Just (idx, constraints)
+    matchTyVar _ = Nothing
+
+    tyVarMappings :: [(Integer, String)]
+    tyVarMappings =
+      fmap (\(idx, constraints) -> (idx, prettyTyVar idx constraints))
+        . mapMaybe matchTyVar
+        $ stack
+
+    usedIndices :: [Integer]
+    usedIndices = nub $ map fst tyVarMappings
+
+    prettyIndex :: Integer -> String
+    prettyIndex idx = (: []) $ fromMaybe undefined $ lookup idx $ zip usedIndices ['a' ..]
+
+    prettyTyVar :: Integer -> Maybe [HType] -> String
+    prettyTyVar idx Nothing = prettyIndex idx
+    prettyTyVar idx (Just constraints) = "(" <> prettyIndex idx <> " := " <> prettyConstraints constraints <> ")"
+
+    prettyConstraints :: [HType] -> String
+    prettyConstraints constraints = intercalate " | " $ map prettyTy constraints
+
+    prettyTy :: HType -> String
+    prettyTy HInt = "int"
+    prettyTy HBool = "bool"
+    prettyTy HAddr = "#addr#" -- NOTE: this should never be printed
+    prettyTy HPtr = "ptr"
+    prettyTy (HTypeVar idx _) = fromMaybe undefined $ lookup idx tyVarMappings

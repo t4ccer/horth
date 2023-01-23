@@ -66,12 +66,11 @@ data Intrinsic
     Dup
   | -- | Swap the top two elements of the stack
     Swap
+  | Rot
   | -- | Pop the top element of the stack
     Pop
   | -- | Duplicate the second element of the stack
     Over
-  | -- | Print the top element of the stack
-    PrintI
   | -- | Read one byte from a ptr
     Read1
   | Read4

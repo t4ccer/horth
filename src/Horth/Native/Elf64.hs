@@ -87,6 +87,14 @@ compileElf64 code =
               emitInstr "mov" ["[rsp]", "r13"]
             OpCodeIntr Over -> do
               emitInstr "push qword" ["[rsp+8]"]
+            OpCodeIntr Rot -> do
+              -- TODO: Optimize?
+              emitInstr "pop" ["r13"]
+              emitInstr "pop" ["r12"]
+              emitInstr "pop" ["r11"]
+              emitInstr "push" ["r13"]
+              emitInstr "push" ["r11"]
+              emitInstr "push" ["r12"]
             OpCodeIntr Pop -> do
               emitInstr "add" ["rsp", "8"]
             OpCodeIntr EqI -> do
@@ -108,9 +116,6 @@ compileElf64 code =
               emitInstr "pop" ["r13"]
               emitInstr "cmp" ["r13", "1"]
               emitInstr "je" ["ip_" <> Text.pack (show jmpAddr)]
-            OpCodeIntr PrintI -> do
-              emitInstr "pop" ["rdi"]
-              emitInstr "call" ["print_uint"]
             OpCodeIntr Read1 -> do
               emitInstr "pop " ["r13"]
               emitInstr "mov" ["r12", "[r13]"]
@@ -253,39 +258,8 @@ prologue = do
   emitVerbatim "        horthCallStack resq 1024"
 
   emitSection ".text"
-  emitLabel "print_uint"
-  emitInstr "mov" ["rax", "rdi"]
-  emitInstr "xor" ["rcx", "rcx"]
-  emitInstr "mov" ["r8", "10"]
-  -- Push digits onto stack
-  emitLabel ".loop"
-  emitInstr "xor" ["rdx", "rdx"]
-  emitInstr "div" ["r8"]
-  emitInstr "add" ["dl", "0x30"]
-  emitInstr "dec" ["rsp"]
-  emitInstr "mov" ["[rsp]", "dl"]
-  emitInstr "inc" ["rcx"]
-  emitInstr "test" ["rax", "rax"]
-  emitInstr "jnz" [".loop"]
-  -- Print elements from stack
-  emitInstr "xor" ["rax", "rax"]
-  emitInstr "mov" ["rsi", "rsp"]
-  emitInstr "mov" ["rdx", "rcx"]
-  emitInstr "push" ["rcx"]
-  emitInstr "mov" ["rax", "1"]
-  emitInstr "mov" ["rdi", "1"]
-  emitInstr "syscall" []
-  emitInstr "pop" ["rcx"]
-  emitInstr "add" ["rsp", "rcx"]
-  emitInstr "mov" ["rax", "1"]
-  emitInstr "mov" ["rdi", "1"]
-  emitInstr "mov" ["rsi", "nl"]
-  emitInstr "mov" ["rdx", "1"]
-  emitInstr "syscall" []
-  emitInstr "ret" []
   emitLabel "_start"
   emitInstr "mov" ["r15", "horthCallStack"]
-
   emitInstr "pop" ["r14"]
   emitInstr "push qword" ["rsp"]
   emitInstr "push" ["r14"]

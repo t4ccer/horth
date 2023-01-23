@@ -52,7 +52,7 @@ horthP =
       , keywordP "pop" (AstIntr Pop)
       , keywordP "drop" (AstIntr Pop)
       , keywordP "over" (AstIntr Over)
-      , keywordP "printi" (AstIntr PrintI)
+      , keywordP "rot" (AstIntr Rot)
       , keywordP "read1" (AstIntr Read1)
       , keywordP "read4" (AstIntr Read4)
       , keywordP "write1" (AstIntr Write1)

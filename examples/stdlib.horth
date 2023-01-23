@@ -1,7 +1,19 @@
 #include elf64_syscalls
 
+macro sizeof(print_uint_buf) ( -> int) 32 end
+macro print_uint_buf ( -> ptr) mem end
+macro mem_start ( -> ptr) print_uint_buf sizeof(print_uint_buf) add end
+
 macro neqi (int int -> bool)
   eqi not
+end
+
+macro get_argv (int ptr -> ptr)
+  8 mul add read4 unsafe_mk_ptr
+end
+
+proc mod (int int -> int)
+  over over div mul sub
 end
 
 proc str_len (ptr -> int)
@@ -17,7 +29,7 @@ proc str_len (ptr -> int)
   0 swap str_len_go pop
 end
 
-proc print_str_len (ptr int -> )
+macro print_str_len (ptr int -> )
  1 sys_write pop
 end
 
@@ -29,6 +41,22 @@ proc print_bool (bool -> )
   if "true" else "false" end print_str
 end
 
-macro get_argv (int ptr -> ptr)
-  8 mul add read4 unsafe_mk_ptr
+proc print_uint (int -> )
+  0 print_uint_buf sizeof(print_uint_buf) 1 sub add write1
+  sizeof(print_uint_buf) 2 sub
+  proc print_uint_go (int int -> )
+    over
+    10 mod '0' add
+    swap print_uint_buf over add
+    rot 1 sub
+    rot swap write1
+    swap 10 div
+    dup 0 eqi if
+      drop
+      print_uint_buf swap add 1 add print_str
+    else
+      swap print_uint_go
+    end
+  end
+  print_uint_go
 end
