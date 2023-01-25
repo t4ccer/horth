@@ -7,9 +7,26 @@ import Data.Char (isSpace, ord)
 import Data.Functor (($>))
 import Data.Text (Text)
 import Data.Text qualified as Text
-import Text.Megaparsec
-import Text.Megaparsec.Char
+import Text.Megaparsec (
+  ParseErrorBundle,
+  Parsec,
+  ShowErrorComponent (showErrorComponent),
+  SourcePos,
+  anySingle,
+  between,
+  eof,
+  getSourcePos,
+  many,
+  optional,
+  parse,
+  satisfy,
+  some,
+  try,
+  (<?>),
+ )
+import Text.Megaparsec.Char (char, space1)
 import Text.Megaparsec.Char.Lexer (decimal, signed)
+import Text.Megaparsec.Char.Lexer qualified as L
 
 import Horth.Types
 
@@ -72,75 +89,61 @@ horthP =
 procP :: Parser Ast
 procP = do
   procPos <- getSourcePos
-  constr <- (string "proc" $> AstProc False) <|> (string "macro" $> AstProc True)
-  whiteSpaceP
-  procName <- Text.pack <$> some notSpaceChar
-  whiteSpaceP
-  void $ char '('
-  void $ optional whiteSpaceP
-  inTy <- many tyParser
-  void $ string "->"
-  void $ optional whiteSpaceP
-  outTy <- many tyParser
-  void $ optional whiteSpaceP
-  void $ char ')'
-  whiteSpaceP
+  constr <-
+    asum
+      [ symbol "proc" $> AstProc False
+      , symbol "macro" $> AstProc True
+      ]
+  procName <- lexeme (Text.pack <$> some notSpaceChar)
+  (inTy, outTy) <- parens $ do
+    inTy <- many tyParser
+    void $ symbol "->"
+    outTy <- many tyParser
+    pure (inTy, outTy)
 
   procAst <- many horthP
 
-  void $ string "end"
-  whiteSpaceEndP
+  void $ symbol "end"
   pure $ constr procName inTy outTy procAst procPos
 
 ifP :: Parser Ast
 ifP = do
   ifPos <- getSourcePos
-  void $ string "if" >> whiteSpaceP
+  void $ symbol "if"
 
   ifAst <- many horthP
 
-  else' <- optional $ string "else" >> whiteSpaceP
+  else' <- optional $ symbol "else"
   elseAst <- case else' of
     Nothing -> pure []
     Just _ -> many horthP
 
-  void $ string "end" >> whiteSpaceEndP
+  void $ symbol "end"
   pure $ AstIf ifAst elseAst ifPos
 
 nameP :: Parser Ast
-nameP = do
+nameP = lexeme $ do
   namePos <- getSourcePos
   name <- Text.pack <$> some notSpaceChar
   guard $ notElem name ["proc", "macro", "if", "else", "end"]
-  whiteSpaceEndP
   pure $ AstName name namePos
 
 tyParser :: Parser HType
 tyParser = do
-  ty <-
-    asum
-      [ HInt <$ string "int"
-      , HBool <$ string "bool"
-      , HPtr <$ string "ptr"
-      ]
-  void $ optional whiteSpaceP
-  pure ty
+  asum
+    [ HInt <$ symbol "int"
+    , HBool <$ symbol "bool"
+    , HPtr <$ symbol "ptr"
+    ]
 
-notSpaceChar :: (MonadParsec e s m, Token s ~ Char) => m (Token s)
-notSpaceChar = satisfy (not . isSpace) <?> "not white space"
+notSpaceChar :: Parser Char
+notSpaceChar = satisfy (not . isSpace) <?> "not whitespace"
 {-# INLINE notSpaceChar #-}
 
-whiteSpaceP :: Parser ()
-whiteSpaceP = skipSome spaceChar
-
-whiteSpaceEndP :: Parser ()
-whiteSpaceEndP = whiteSpaceP <|> eof
-
 numLitP :: Parser Ast
-numLitP = do
+numLitP = lexeme $ do
   numPos <- getSourcePos
   num <- signed (pure ()) decimal
-  whiteSpaceEndP
   return $ AstPushLit (LitInt num) numPos
 
 boolLitP :: Parser Ast
@@ -151,43 +154,51 @@ boolLitP = do
     ]
 
 strPtrLitP :: Parser Ast
-strPtrLitP = do
+strPtrLitP = lexeme $ do
   strPos <- getSourcePos
   void $ char '"'
   str <- many (satisfy (/= '"') <?> "not double quote")
   void $ char '"'
-  whiteSpaceEndP
   return $ AstPushLit (LitStr $ Char8.pack str) strPos
 
 charP :: Parser Ast
-charP = do
+charP = lexeme $ do
   charPos <- getSourcePos
   void $ char '\''
   c <- anySingle
   void $ char '\''
-  whiteSpaceEndP
   return $ AstPushLit (LitInt $ fromIntegral $ ord c) charPos
 
 keywordP :: Show ast => Text -> (SourcePos -> ast) -> Parser ast
-keywordP keyword ast = do
+keywordP keyword ast = lexeme $ do
   pos <- getSourcePos
-  void $ string keyword
-  whiteSpaceEndP
+  void $ symbol keyword
   pure $ ast pos
 
 includeP :: Parser Ast
-includeP = do
+includeP = lexeme $ do
   pos <- getSourcePos
-  void $ string "#include"
-  whiteSpaceP
+  void $ symbol "#include"
   path <- some notSpaceChar
-  whiteSpaceEndP
   pure $ AstInclude path pos
 
 holeP :: Parser Ast
-holeP = do
+holeP = lexeme $ do
   pos <- getSourcePos
-  void $ string "_"
+  void $ symbol "_"
   holeName <- ("_" <>) . Text.pack <$> many notSpaceChar
-  whiteSpaceEndP
   pure $ AstHole holeName pos
+
+-- Helpers
+
+parens :: Parser a -> Parser a
+parens = between (symbol "(") (symbol ")")
+
+symbol :: Text -> Parser Text
+symbol = L.symbol space
+
+lexeme :: Parser a -> Parser a
+lexeme = L.lexeme space
+
+space :: Parser ()
+space = L.space space1 (L.skipLineComment "//") (L.skipBlockComment "/*" "*/")

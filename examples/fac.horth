@@ -1,8 +1,10 @@
 #include stdlib
 
+// Factorial function takes an integer and returns an integer
 proc fac (int -> int)
+  // Recursive helper function
   proc fac_go (int int -> int int)
-    dup 0 eqi not
+    dup 0 neqi
     if
       swap over mul swap
       1 sub

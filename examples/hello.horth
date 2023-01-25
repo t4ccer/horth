@@ -1,3 +1,4 @@
 #include stdlib
 
+// String literals push pointer to null terminated string
 "Hello, World!" print_str
