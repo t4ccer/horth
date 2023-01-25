@@ -21,8 +21,8 @@ newtype TypeCheckedAst = TypeCheckedAst {getTypeCheckedAst :: [Ast]}
   deriving stock (Eq, Show)
 
 data TypeCheckState = TypeCheckState
-  { typeCheckStack :: [HType]
-  , typeCheckLabels :: [(Text, ([HType], [HType]))]
+  { typeCheckStack :: TypeStack
+  , typeCheckLabels :: [(Text, (TypeStack, TypeStack))]
   , typeCheckUsedTyVars :: Integer
   }
 
@@ -43,6 +43,7 @@ data Vec (n :: Peano) (a :: Type) where
 infixr 5 :>
 
 deriving stock instance Show a => Show (Vec n a)
+deriving stock instance Functor (Vec n)
 
 -- | Get runtime length of a vector
 vecLength :: forall (n :: Peano) (a :: Type). Vec n a -> Int
@@ -80,32 +81,39 @@ stacksEqual = stacksEqual' mempty
     stacksEqual' tyVars (t1 :> ts1) (t2 :> ts2) =
       t1 == t2 && stacksEqual' tyVars ts1 ts2
 
-typeCheck :: [Ast] -> Either TypeError (TypeCheckedAst, [HType])
-typeCheck [] = pure (TypeCheckedAst [], [])
+typeCheck :: [Ast] -> Either TypeError (TypeCheckedAst, TypeStack)
+typeCheck [] = pure (TypeCheckedAst [], TypeStack [])
 typeCheck ast@(a : as) = do
   let initStack =
-        [ HInt -- argc
-        , HPtr -- argv
-        ]
+        TypeStack
+          [ (HInt, Just "argc")
+          , (HPtr, Just "argv")
+          ]
   fmap (\st -> (TypeCheckedAst ast, typeCheckStack st))
     . flip runReaderT (a :| as)
     . flip execStateT (TypeCheckState initStack [] 0)
     . runTypeCheckMachine
     $ go
   where
+    pushType' :: (HType, Maybe Text) -> TypeCheckMachine ()
+    pushType' (HTypeVar _ _, _) = error "pushType: Implementation bug - Type variable pushed"
+    pushType' t = modify (\s -> s {typeCheckStack = TypeStack (t : getTypeStack (typeCheckStack s))})
+
     pushType :: HType -> TypeCheckMachine ()
-    pushType (HTypeVar _ _) = error "pushType: Implementation bug - Type variable pushed"
-    pushType t = modify (\s -> s {typeCheckStack = t : typeCheckStack s})
+    pushType t = pushType' (t, Nothing)
+
+    pushTypeNamed :: HType -> Text -> TypeCheckMachine ()
+    pushTypeNamed t name = pushType' (t, Just name)
 
     popTypes ::
       forall (n :: Peano).
       Vec n HType ->
       SourcePos ->
-      TypeCheckMachine (Vec n HType)
+      TypeCheckMachine (Vec n (HType, Maybe Text))
     popTypes t pos = do
       op :| _ <- ask
       let expectedLen = vecLength t
-      stackLst <- gets ((take expectedLen) . typeCheckStack)
+      stackLst <- gets ((take expectedLen) . getTypeStack . typeCheckStack)
       let prettyOp = \case
             AstIntr intr _ -> prettyIntrinsic intr
             AstIf _ _ _ -> "if"
@@ -121,16 +129,16 @@ typeCheck ast@(a : as) = do
                   , "'\n"
                   , "    Expected:\n"
                   , "        "
-                  , prettyStack $ vecToList t
+                  , prettyStack $ TypeStack $ fmap (,Nothing) $ vecToList t
                   , "\n    Got:\n"
                   , "        "
-                  , prettyStack stackLst
+                  , prettyStack $ TypeStack stackLst
                   ]
       when (length stackLst /= expectedLen) err
       -- 'vecFromList' is safe here because we checked the length of the list
-      let stack :: Vec n HType = vecFromList stackLst t
-      unless (stacksEqual t stack) err
-      modify (\s -> s {typeCheckStack = drop expectedLen (typeCheckStack s)})
+      let stack :: Vec n (HType, Maybe Text) = vecFromList stackLst t
+      unless (stacksEqual t $ fmap fst stack) err
+      modify (\s -> s {typeCheckStack = TypeStack $ drop expectedLen $ getTypeStack $ typeCheckStack s})
       pure stack
 
     generateTyVar :: TypeCheckMachine HType
@@ -150,7 +158,7 @@ typeCheck ast@(a : as) = do
       Nothing -> pure ()
       Just ast -> local (const ast) go
 
-    saveProcType :: Text -> [HType] -> [HType] -> TypeCheckMachine ()
+    saveProcType :: Text -> TypeStack -> TypeStack -> TypeCheckMachine ()
     saveProcType name inType outType =
       modify
         ( \s ->
@@ -159,7 +167,7 @@ typeCheck ast@(a : as) = do
               }
         )
 
-    getProcType :: Text -> SourcePos -> TypeCheckMachine ([HType], [HType])
+    getProcType :: Text -> SourcePos -> TypeCheckMachine (TypeStack, TypeStack)
     getProcType name pos = do
       labels <- gets typeCheckLabels
       case lookup name labels of
@@ -179,8 +187,8 @@ typeCheck ast@(a : as) = do
       currAst :| restAst <- ask
 
       case currAst of
-        AstPushLit (LitInt _) _ -> do
-          pushType HInt
+        AstPushLit (LitInt lit) _ -> do
+          pushTypeNamed HInt $ Text.pack $ show lit
           continueLinear restAst
         AstPushLit (LitBool _) _ -> do
           pushType HBool
@@ -193,13 +201,19 @@ typeCheck ast@(a : as) = do
           continueLinear restAst
         AstIntr Add pos -> do
           b <- generateTyVar' [HInt, HPtr]
-          _ :> b' :> Nil <- popTypes (HInt :> b :> Nil) pos
-          pushType b'
+          a' :> b' :> Nil <- popTypes (HInt :> b :> Nil) pos
+          let newName = case (snd a', snd b') of
+                (Just aName, Just bName) -> Just $ bName <> "+" <> aName
+                _ -> Nothing
+          pushType' $ changeName newName b'
           continueLinear restAst
         AstIntr Sub pos -> do
           b <- generateTyVar' [HInt, HPtr]
-          _ :> b' :> Nil <- popTypes (HInt :> b :> Nil) pos
-          pushType b'
+          a' :> b' :> Nil <- popTypes (HInt :> b :> Nil) pos
+          let newName = case (snd a', snd b') of
+                (Just aName, Just bName) -> Just $ bName <> "-" <> aName
+                _ -> Nothing
+          pushType' $ changeName newName b'
           continueLinear restAst
         AstIntr Mul pos -> do
           void $ popTypes (HInt :> HInt :> Nil) pos
@@ -221,14 +235,14 @@ typeCheck ast@(a : as) = do
           a <- generateTyVar
           b <- generateTyVar
           (a' :> b' :> Nil) <- popTypes (a :> b :> Nil) pos
-          pushType a'
-          pushType b'
+          pushType' a'
+          pushType' b'
           continueLinear restAst
         AstIntr Dup pos -> do
           a <- generateTyVar
           (a' :> Nil) <- popTypes (a :> Nil) pos
-          pushType a'
-          pushType a'
+          pushType' a'
+          pushType' a'
           continueLinear restAst
         AstIntr Pop pos -> do
           a <- generateTyVar
@@ -238,18 +252,18 @@ typeCheck ast@(a : as) = do
           a <- generateTyVar
           b <- generateTyVar
           (a' :> b' :> Nil) <- popTypes (a :> b :> Nil) pos
-          pushType b'
-          pushType a'
-          pushType b'
+          pushType' b'
+          pushType' a'
+          pushType' b'
           continueLinear restAst
         AstIntr Rot pos -> do
           a <- generateTyVar
           b <- generateTyVar
           c <- generateTyVar
           (a' :> b' :> c' :> Nil) <- popTypes (a :> b :> c :> Nil) pos
-          pushType a'
-          pushType c'
-          pushType b'
+          pushType' a'
+          pushType' c'
+          pushType' b'
           continueLinear restAst
         AstIntr Read1 pos -> do
           void $ popTypes (HPtr :> Nil) pos
@@ -263,7 +277,7 @@ typeCheck ast@(a : as) = do
           void $ popTypes (HPtr :> HInt :> Nil) pos
           continueLinear restAst
         AstIntr Mem _ -> do
-          pushType HPtr
+          pushTypeNamed HPtr "#mem#"
           continueLinear restAst
         AstIntr SysCall0 pos -> do
           void $ popTypes (HInt :> Nil) pos
@@ -317,6 +331,11 @@ typeCheck ast@(a : as) = do
         AstIntr UnsafeMkPtr pos -> do
           void $ popTypes (HInt :> Nil) pos
           pushType HPtr
+          continueLinear restAst
+        AstIntr (Rename newName) pos -> do
+          a <- generateTyVar
+          (a' :> Nil) <- popTypes (a :> Nil) pos
+          pushType' $ changeName (Just newName) a'
           continueLinear restAst
         AstIntr (Jmp _) _ -> do
           error "'jmp' shouldn't be in the AST"
@@ -375,7 +394,7 @@ typeCheck ast@(a : as) = do
               local (const procAst') go
               modify (\s -> s {typeCheckLabels = labels})
           postProcStack <- gets typeCheckStack
-          unless (postProcStack == outStack) $
+          unless (fmap fst (getTypeStack postProcStack) == fmap fst (getTypeStack outStack)) $
             throwError $
               Text.pack $
                 mconcat
@@ -385,7 +404,7 @@ typeCheck ast@(a : as) = do
                   , "' type missmatch.\n"
                   , "    Procedure declared output type to be:\n"
                   , "        "
-                  , prettyStack outStack
+                  , prettyStack $ outStack
                   , "\n"
                   , "    But is:\n"
                   , "        "
@@ -398,9 +417,9 @@ typeCheck ast@(a : as) = do
           continueLinear restAst
         AstName name pos -> do
           (inType, outType) <- getProcType name pos
-          stackTop <- gets ((take (length inType)) . typeCheckStack)
+          stackTop <- gets ((take (length $ getTypeStack inType)) . getTypeStack . typeCheckStack)
           -- FIXME: Supoprt type variables in 'inType'
-          unless (stackTop == inType) $
+          unless (fmap fst stackTop == fmap fst (getTypeStack inType)) $
             throwError $
               Text.pack $
                 mconcat
@@ -411,10 +430,10 @@ typeCheck ast@(a : as) = do
                   , "    To call the procedure, stack top is expected: "
                   , prettyStack inType
                   , ", got: "
-                  , prettyStack stackTop
+                  , prettyStack $ TypeStack stackTop
                   ]
-          modify (\s -> s {typeCheckStack = drop (length inType) (typeCheckStack s)})
-          modify (\s -> s {typeCheckStack = outType ++ typeCheckStack s})
+          modify (\s -> s {typeCheckStack = TypeStack (drop (length $ getTypeStack inType) (getTypeStack $ typeCheckStack s))})
+          modify (\s -> s {typeCheckStack = outType <> typeCheckStack s})
           continueLinear restAst
         AstHole holeName pos -> do
           currStack <- gets typeCheckStack
@@ -430,12 +449,15 @@ typeCheck ast@(a : as) = do
                 , prettyStack currStack
                 ]
 
-prettyStack :: [HType] -> String
-prettyStack [] = "<empty>"
-prettyStack stack = unwords $ map prettyTy stack
+changeName :: Maybe Text -> (HType, Maybe Text) -> (HType, Maybe Text)
+changeName name (t, _) = (t, name)
+
+prettyStack :: TypeStack -> String
+prettyStack (TypeStack []) = "<empty>"
+prettyStack (TypeStack stack) = unwords $ map prettyTy stack
   where
-    matchTyVar :: HType -> Maybe (Integer, (Maybe [HType]))
-    matchTyVar (HTypeVar idx constraints) = Just (idx, constraints)
+    matchTyVar :: (HType, Maybe Text) -> Maybe (Integer, (Maybe [HType]))
+    matchTyVar (HTypeVar idx constraints, _name) = Just (idx, constraints)
     matchTyVar _ = Nothing
 
     tyVarMappings :: [(Integer, String)]
@@ -455,11 +477,15 @@ prettyStack stack = unwords $ map prettyTy stack
     prettyTyVar idx (Just constraints) = "(" <> prettyIndex idx <> " := " <> prettyConstraints constraints <> ")"
 
     prettyConstraints :: [HType] -> String
-    prettyConstraints constraints = intercalate " | " $ map prettyTy constraints
+    prettyConstraints constraints = intercalate " | " $ map (prettyTy . (,Nothing)) constraints
 
-    prettyTy :: HType -> String
-    prettyTy HInt = "int"
-    prettyTy HBool = "bool"
-    prettyTy HAddr = "#addr#" -- NOTE: this should never be printed
-    prettyTy HPtr = "ptr"
-    prettyTy (HTypeVar idx _) = fromMaybe undefined $ lookup idx tyVarMappings
+    prettyTy :: (HType, Maybe Text) -> String
+    prettyTy (HInt, name) = prettyName name "int"
+    prettyTy (HBool, name) = prettyName name "bool"
+    prettyTy (HAddr, name) = prettyName name "#addr#" -- NOTE: this should never be printed
+    prettyTy (HPtr, name) = prettyName name "ptr"
+    prettyTy (HTypeVar idx _, _name) = fromMaybe undefined $ lookup idx tyVarMappings
+
+    prettyName :: Maybe Text -> String -> String
+    prettyName Nothing t = t
+    prettyName (Just name) t = "(" <> Text.unpack name <> " := " <> t <> ")"

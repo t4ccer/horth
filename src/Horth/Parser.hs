@@ -23,8 +23,9 @@ import Text.Megaparsec (
   some,
   try,
   (<?>),
+  (<|>),
  )
-import Text.Megaparsec.Char (char, space1)
+import Text.Megaparsec.Char (char, eol, space1)
 import Text.Megaparsec.Char.Lexer (decimal, signed)
 import Text.Megaparsec.Char.Lexer qualified as L
 
@@ -57,6 +58,7 @@ horthP =
       , numLitP
       , boolLitP
       , charP
+      , renameP -- Must be before strPtrLitP
       , strPtrLitP
       , keywordP "add" (AstIntr Add)
       , keywordP "sub" (AstIntr Sub)
@@ -81,8 +83,8 @@ horthP =
       , keywordP "syscall5" (AstIntr SysCall5)
       , keywordP "syscall6" (AstIntr SysCall6)
       , keywordP "unsafe_mk_ptr" (AstIntr UnsafeMkPtr)
-      , holeP
       , includeP
+      , holeP
       , nameP
       ]
 
@@ -96,15 +98,15 @@ procP = do
       ]
   procName <- lexeme (Text.pack <$> some notSpaceChar)
   (inTy, outTy) <- parens $ do
-    inTy <- many tyParser
+    inTy <- many (namedTyParser <|> unnamedTyParser)
     void $ symbol "->"
-    outTy <- many tyParser
+    outTy <- many (namedTyParser <|> unnamedTyParser)
     pure (inTy, outTy)
 
   procAst <- many horthP
 
   void $ symbol "end"
-  pure $ constr procName inTy outTy procAst procPos
+  pure $ constr procName (TypeStack inTy) (TypeStack outTy) procAst procPos
 
 ifP :: Parser Ast
 ifP = do
@@ -135,6 +137,17 @@ tyParser = do
     , HBool <$ symbol "bool"
     , HPtr <$ symbol "ptr"
     ]
+
+unnamedTyParser :: Parser (HType, Maybe Text)
+unnamedTyParser = (,Nothing) <$> tyParser
+
+namedTyParser :: Parser (HType, Maybe Text)
+namedTyParser = lexeme $ parens $ do
+  tyName <- Text.pack <$> some notSpaceChar
+  space
+  void $ symbol ":="
+  ty <- tyParser
+  pure (ty, Just tyName)
 
 notSpaceChar :: Parser Char
 notSpaceChar = satisfy (not . isSpace) <?> "not whitespace"
@@ -172,8 +185,18 @@ charP = lexeme $ do
 keywordP :: Show ast => Text -> (SourcePos -> ast) -> Parser ast
 keywordP keyword ast = lexeme $ do
   pos <- getSourcePos
-  void $ symbol keyword
+  void $ L.symbol (space1 <|> void eol <|> eof) keyword
   pure $ ast pos
+
+renameP :: Parser Ast
+renameP = lexeme $ do
+  pos <- getSourcePos
+  void $ char '"'
+  name <- some (satisfy (/= '"') <?> "not double quote")
+  void $ char '"'
+  space
+  void $ L.symbol (space1 <|> void eol <|> eof) "rename"
+  pure $ AstIntr (Rename $ Text.pack name) pos
 
 includeP :: Parser Ast
 includeP = lexeme $ do
@@ -185,7 +208,7 @@ includeP = lexeme $ do
 holeP :: Parser Ast
 holeP = lexeme $ do
   pos <- getSourcePos
-  void $ symbol "_"
+  void $ char '_'
   holeName <- ("_" <>) . Text.pack <$> many notSpaceChar
   pure $ AstHole holeName pos
 

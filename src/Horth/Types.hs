@@ -84,6 +84,7 @@ data Intrinsic
   | SysCall5
   | SysCall6
   | UnsafeMkPtr
+  | Rename Text
   deriving stock (Show, Eq)
 
 prettyIntrinsic :: Intrinsic -> Text
@@ -100,6 +101,10 @@ data HType
   | HTypeVar Integer (Maybe [HType])
   deriving stock (Show, Eq)
 
+newtype TypeStack = TypeStack {getTypeStack :: [(HType, Maybe Text)]}
+  deriving stock (Eq, Show)
+  deriving newtype (Semigroup, Monoid)
+
 -- * Rich AST
 
 data Ast
@@ -108,6 +113,6 @@ data Ast
   | AstInclude FilePath SourcePos
   | AstName Text SourcePos
   | AstIf [Ast] [Ast] SourcePos
-  | AstProc Bool Text [HType] [HType] [Ast] SourcePos
+  | AstProc Bool Text TypeStack TypeStack [Ast] SourcePos
   | AstHole Text SourcePos
   deriving stock (Show, Eq)

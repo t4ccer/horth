@@ -1,11 +1,11 @@
 #include stdlib
 
-proc print_from_fd (int -> )
+proc print_from_fd ((fd := int) -> )
   dup
   16 swap
-  mem swap
+  mem_start swap
   sys_read
-  dup mem print_str_len
+  dup mem_start print_str_len
   16 eqi if
     print_from_fd
   else

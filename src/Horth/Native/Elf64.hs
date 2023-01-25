@@ -181,6 +181,7 @@ compileElf64 code =
               emitInstr "syscall" []
               emitInstr "push" ["rax"]
             OpCodeIntr UnsafeMkPtr -> pure ()
+            OpCodeIntr (Rename _) -> pure ()
             OpCodePushToCallStack (Addr retAddr) (Addr jmpAddr) -> do
               emitInstr "add" ["r15", "8"]
               emitInstr "mov" ["qword [r15]", "ip_" <> Text.pack (show retAddr)]

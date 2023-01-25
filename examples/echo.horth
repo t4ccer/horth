@@ -1,6 +1,6 @@
 #include stdlib
 
-proc echo (int ptr -> int ptr)
+proc echo ((argc := int) (argv := ptr) -> )
   1 sub
   dup 0 neqi if
     swap
@@ -11,6 +11,8 @@ proc echo (int ptr -> int ptr)
       " " print_str
     end
     echo
+  else
+    drop drop
   end
 end
 

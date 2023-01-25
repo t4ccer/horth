@@ -1,15 +1,15 @@
-macro sys_read (int ptr int -> int)
+macro sys_read ((fd := int) (buf := ptr) (count := int) -> (read_count := int))
   0 syscall3
 end
 
-macro sys_write (int ptr int -> int)
+macro sys_write ((fd := int) (src := ptr) (count := int) -> (wrote_count := int))
   1 syscall3
 end
 
-macro sys_open (ptr int int -> int)
+macro sys_open ((file_name := ptr) (flags := int) (mode := int) -> (fd := int))
   2 syscall3
 end
 
-macro sys_close (int -> int)
+macro sys_close ((fd := int) -> int)
   3 syscall1
 end
