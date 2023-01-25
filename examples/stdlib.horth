@@ -24,7 +24,7 @@ end
 
 // O(n) - Iterate till null byte
 proc str_len ((str := ptr) -> (len := int))
-  proc str_len_go (ptr int -> ptr int)
+  proc str_len_go ((str := ptr) (len := int) -> (str+1 := ptr) (len+1 := int))
     dup read1 0 neqi if
       1 add
       swap

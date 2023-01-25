@@ -363,7 +363,7 @@ typeCheck ast@(a : as) = do
               modify (\s -> s {typeCheckLabels = labels, typeCheckStack = stack})
               pure postElseStack
 
-          unless (ifStack == elseStack) $
+          unless (fmap fst (getTypeStack ifStack) == fmap fst (getTypeStack elseStack)) $
             throwError $
               Text.pack $
                 mconcat
