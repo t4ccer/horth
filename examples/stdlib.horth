@@ -5,6 +5,8 @@
 // NOTE: When using stdlib instead of 'mem' intrinsic
 // User should use 'mem_start' macro instead.
 macro sizeof(int) ( -> (sizeof(int) := int)) 8 end
+macro sizeof(ptr) ( -> (sizeof(ptr) := int)) 8 end
+
 macro sizeof(print_uint_buf) ( -> (sizeof(print_uint_buf) := int)) 32 end
 macro print_uint_buf ( -> (print_uint_buf := ptr)) mem end
 macro mem_start ( -> (mem_start := ptr)) print_uint_buf sizeof(print_uint_buf) add end
@@ -15,7 +17,7 @@ end
 
 // Array indexing function
 macro get_argv ((offset := int) (argv := ptr) -> ptr)
-  sizeof(int) mul add read4 unsafe_mk_ptr
+  sizeof(ptr) mul add read4 unsafe_mk_ptr
 end
 
 proc mod (int int -> int)
@@ -54,7 +56,7 @@ proc print_uint (int -> )
 
   // Set buffer pointer counting down
   sizeof(print_uint_buf) 2 sub
-  proc print_uint_go (int int -> )
+  proc print_uint_go ((buf_offset := int) int -> )
     over
     // Get lowest digit
     10 mod '0' add
