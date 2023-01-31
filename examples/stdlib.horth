@@ -1,15 +1,8 @@
 #include elf64_syscalls
+#include leak_allocator
 
-// Global memory
-// TODO: Write allocator
-// NOTE: When using stdlib instead of 'mem' intrinsic
-// User should use 'mem_start' macro instead.
 macro sizeof(int) ( -> (sizeof(int) := int)) 8 end
 macro sizeof(ptr) ( -> (sizeof(ptr) := int)) 8 end
-
-macro sizeof(print_uint_buf) ( -> (sizeof(print_uint_buf) := int)) 32 end
-macro print_uint_buf ( -> (print_uint_buf := ptr)) mem end
-macro mem_start ( -> (mem_start := ptr)) print_uint_buf sizeof(print_uint_buf) add end
 
 macro neqi (int int -> bool)
   eqi not
@@ -17,7 +10,7 @@ end
 
 // Array indexing function
 macro get_argv ((offset := int) (argv := ptr) -> ptr)
-  sizeof(ptr) mul add read4 unsafe_mk_ptr
+  sizeof(ptr) mul add read8 unsafe_mk_ptr
 end
 
 proc mod (int int -> int)
@@ -50,31 +43,34 @@ proc print_bool (bool -> )
   if "true" else "false" end print_str
 end
 
-proc print_uint (int -> )
+proc print_uint ((num_to_print := int) -> )
+  macro sizeof(print_uint_buf) ( -> (sizeof(print_uint_buf) := int)) 64 end
+
+  sizeof(print_uint_buf) alloc "buf" rename dup rot
+
   // Set null byte
-  0 print_uint_buf sizeof(print_uint_buf) 1 sub add write1
+  0 over sizeof(print_uint_buf) 1 sub add write1 swap
 
   // Set buffer pointer counting down
-  sizeof(print_uint_buf) 2 sub
-  proc print_uint_go ((buf_offset := int) int -> )
-    over
+  sizeof(print_uint_buf) 2 sub rot rot swap add swap
+  proc print_uint_go ((num_to_print := int) (buf := ptr) -> )
+    dup
     // Get lowest digit
-    10 mod '0' add
-    // Get pointer to current char in buffer
-    swap print_uint_buf over add
-    // Go left in the buffer
-    rot 1 sub
-    // Write char
-    rot swap write1
-    // Remove last digit
-    swap 10 div
+    10 mod '0' add "digit" rename
+    // Write digit to buffer
+    rot rot over over write1
+    // Offset buffer
+    1 sub
+    // Divide by 10
+    swap drop swap 10 div "num_to_print/10" rename
     dup 0 eqi if
       // No more digits
       drop
-      print_uint_buf swap add 1 add print_str
+      1 add print_str
     else
-      swap print_uint_go
+      print_uint_go
     end
   end
   print_uint_go
+  free
 end

@@ -5,7 +5,7 @@ proc echo ((argc := int) (argv := ptr) -> )
   dup 0 neqi if
     swap
     8 add
-    dup read4 unsafe_mk_ptr print_str
+    dup read8 unsafe_mk_ptr print_str
     swap
     dup 1 neqi if
       " " print_str

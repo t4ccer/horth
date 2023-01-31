@@ -269,11 +269,14 @@ typeCheck ast@(a : as) = do
           void $ popTypes (HPtr :> Nil) pos
           pushType HInt
           continueLinear restAst
-        AstIntr Read4 pos -> do
+        AstIntr Read8 pos -> do
           void $ popTypes (HPtr :> Nil) pos
           pushType HInt
           continueLinear restAst
         AstIntr Write1 pos -> do
+          void $ popTypes (HPtr :> HInt :> Nil) pos
+          continueLinear restAst
+        AstIntr Write8 pos -> do
           void $ popTypes (HPtr :> HInt :> Nil) pos
           continueLinear restAst
         AstIntr Mem _ -> do

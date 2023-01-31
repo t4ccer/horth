@@ -1,16 +1,20 @@
 #include stdlib
 
 proc print_from_fd ((fd := int) -> )
-  dup
-  16 swap
-  mem_start swap
-  sys_read
-  dup mem_start print_str_len
-  16 eqi if
-    print_from_fd
-  else
-    drop
+  macro sizeof(buf) ( -> (sizeof(buf) := int)) 16 end
+  sizeof(buf) alloc "buf" rename
+  proc print_from_fd_go ((buf := ptr) (fd := int) -> )
+    over over sizeof(buf)
+    rot swap
+    sys_read
+    over over swap print_str_len
+    16 eqi if
+      print_from_fd_go
+    else
+      drop drop
+    end
   end
+  print_from_fd_go
 end
 
 2 eqi if

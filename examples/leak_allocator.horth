@@ -1,0 +1,15 @@
+proc alloc ((size := int) -> ptr)
+  // Read used memory
+  mem mem read8 "offset" rename
+
+  // Next free chunk
+  add 8 add
+
+  // Calculate new offset
+  swap mem read8 "offset" rename add
+  mem write8
+end
+
+proc free (ptr -> )
+  drop
+end

@@ -121,7 +121,7 @@ compileElf64 code =
               emitInstr "mov" ["r12", "[r13]"]
               emitInstr "and" ["r12", "0xff"]
               emitInstr "push" ["r12"]
-            OpCodeIntr Read4 -> do
+            OpCodeIntr Read8 -> do
               emitInstr "pop " ["r13"]
               emitInstr "mov" ["r12", "[r13]"]
               emitInstr "push" ["r12"]
@@ -129,6 +129,10 @@ compileElf64 code =
               emitInstr "pop" ["r13"]
               emitInstr "pop" ["r12"]
               emitInstr "mov" ["[r13]", "r12b"]
+            OpCodeIntr Write8 -> do
+              emitInstr "pop" ["r13"]
+              emitInstr "pop" ["r12"]
+              emitInstr "mov" ["[r13]", "r12"]
             OpCodeIntr Mem -> do
               emitInstr "push" ["mem"]
             OpCodeIntr SysCall0 -> do

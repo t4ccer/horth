@@ -21,3 +21,6 @@ hello.o
 mem
 mem.asm
 mem.o
+leak_allocator
+leak_allocator.asm
+leak_allocator.o

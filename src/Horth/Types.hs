@@ -73,8 +73,9 @@ data Intrinsic
     Over
   | -- | Read one byte from a ptr
     Read1
-  | Read4
+  | Read8
   | Write1
+  | Write8
   | Mem
   | SysCall0
   | SysCall1
